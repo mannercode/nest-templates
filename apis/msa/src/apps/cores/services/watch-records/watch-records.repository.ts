@@ -46,7 +46,7 @@ export class WatchRecordsRepository extends CrudRepository<WatchRecord> {
         const { customerId } = searchDto
 
         const builder = new QueryBuilder<WatchRecord>()
-        builder.addEqual('customerId', customerId)
+        builder.addEquals('customerId', customerId)
 
         const query = builder.build(options)
         return query

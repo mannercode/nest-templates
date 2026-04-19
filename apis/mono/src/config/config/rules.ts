@@ -1,4 +1,4 @@
-import { Time } from '@mannercode/common'
+import { TimeUtil } from '@mannercode/common'
 import { CronExpression } from '@nestjs/schedule'
 
 /**
@@ -37,7 +37,7 @@ export const Rules = {
     Ticket: {
         // Time duration a ticket can be temporarily held (reserved)
         // 티켓을 임시로 선점할 수 있는 시간
-        holdDurationInMs: Time.toMs('10m'),
+        holdDurationInMs: TimeUtil.toMs('10m'),
 
         // Maximum number of tickets that can be purchased at once
         // 한 번에 구매할 수 있는 최대 티켓 수

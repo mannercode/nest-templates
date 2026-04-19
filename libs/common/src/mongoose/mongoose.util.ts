@@ -28,7 +28,7 @@ type Transform<T> = (value: T) => any
 export class QueryBuilder<T> {
     private query: any = {}
 
-    addEqual(field: string, value?: any): this {
+    addEquals(field: string, value?: any): this {
         if (value !== undefined && value !== null) {
             this.query[field] = value
         }

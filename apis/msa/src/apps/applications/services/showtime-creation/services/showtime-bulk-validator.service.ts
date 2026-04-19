@@ -1,4 +1,4 @@
-import { DateTimeRange, DateUtil, Require, Time } from '@mannercode/common'
+import { DateTimeRange, DateUtil, Require, TimeUtil } from '@mannercode/common'
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { Rules } from 'config'
 import { MoviesClient, ShowtimeDto, ShowtimesClient, TheatersClient } from 'cores'
@@ -14,7 +14,7 @@ const iterateTimeslots = (
     for (
         let timeslot = timeRange.start.getTime();
         timeslot <= timeRange.end.getTime();
-        timeslot = timeslot + Time.toMs(`${Rules.Showtime.timeslotInMinutes}m`)
+        timeslot = timeslot + TimeUtil.toMs(`${Rules.Showtime.timeslotInMinutes}m`)
     ) {
         if (false === onTimeslot(timeslot)) {
             break

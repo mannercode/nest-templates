@@ -1,4 +1,4 @@
-import { JwtAuthModule, Time } from '@mannercode/common'
+import { JwtAuthModule, TimeUtil } from '@mannercode/common'
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
 import { AppConfigService, getProjectId, MongooseConfigModule, RedisConfigModule } from 'config'
@@ -21,9 +21,9 @@ import { CustomerAuthenticationService } from './services'
             useFactory: ({ auth }: AppConfigService) => ({
                 auth: {
                     accessSecret: auth.accessSecret,
-                    accessTokenTtlMs: Time.toMs(auth.accessTokenExpiration),
+                    accessTokenTtlMs: TimeUtil.toMs(auth.accessTokenExpiration),
                     refreshSecret: auth.refreshSecret,
-                    refreshTokenTtlMs: Time.toMs(auth.refreshTokenExpiration)
+                    refreshTokenTtlMs: TimeUtil.toMs(auth.refreshTokenExpiration)
                 }
             })
         })

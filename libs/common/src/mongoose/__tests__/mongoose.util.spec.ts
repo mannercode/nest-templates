@@ -86,7 +86,7 @@ describe('QueryBuilder', () => {
         describe('when the value is provided', () => {
             // 조건을 추가한다
             it('adds the condition', () => {
-                builder.addEqual('name', 'test')
+                builder.addEquals('name', 'test')
                 expect(builder.build({})).toEqual({ name: 'test' })
             })
         })
@@ -95,8 +95,8 @@ describe('QueryBuilder', () => {
         describe('when the value is not provided', () => {
             // 조건을 추가하지 않는다
             it('does not add the condition', () => {
-                builder.addEqual('name', undefined)
-                builder.addEqual('name', null)
+                builder.addEquals('name', undefined)
+                builder.addEquals('name', null)
                 expect(builder.build({ allowEmpty: true })).toEqual({})
             })
         })
@@ -230,7 +230,7 @@ describe('QueryBuilder', () => {
         describe('when conditions exist', () => {
             // 쿼리 객체를 반환한다
             it('returns the query object', () => {
-                builder.addEqual('name', 'test')
+                builder.addEquals('name', 'test')
                 expect(builder.build({})).toEqual({ name: 'test' })
             })
         })

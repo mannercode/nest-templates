@@ -1,4 +1,4 @@
-export class Byte {
+export class ByteUtil {
     /**
      * Converts a size string to a numeric value in bytes.
      * The input string should include a sign, numbers, and a unit (B, KB, MB, GB, TB),

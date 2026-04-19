@@ -25,8 +25,8 @@ export class MoviePendingAssetsRepository extends CrudRepository<MoviePendingAss
 
     async hasPendingAsset(movieId: string, assetId: string): Promise<boolean> {
         const builder = new QueryBuilder<MoviePendingAsset>()
-        builder.addEqual('movieId', movieId)
-        builder.addEqual('assetId', assetId)
+        builder.addEquals('movieId', movieId)
+        builder.addEquals('assetId', assetId)
         const query = builder.build({})
 
         const count = await this.model.countDocuments(query)
@@ -35,8 +35,8 @@ export class MoviePendingAssetsRepository extends CrudRepository<MoviePendingAss
 
     async removePendingAsset(movieId: string, assetId: string): Promise<void> {
         const builder = new QueryBuilder<MoviePendingAsset>()
-        builder.addEqual('movieId', movieId)
-        builder.addEqual('assetId', assetId)
+        builder.addEquals('movieId', movieId)
+        builder.addEquals('assetId', assetId)
         const query = builder.build({})
 
         await this.model.deleteOne(query).exec()

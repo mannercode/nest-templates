@@ -1,13 +1,13 @@
 import fs from 'fs/promises'
 import os from 'os'
 import p from 'path'
-import { Path } from '../path'
+import { PathUtil } from '../path'
 
 describe('Path', () => {
     // 절대 경로를 반환한다
     it('returns an absolute path', async () => {
-        const relativePath = `.${Path.sep()}file.txt`
-        const absolutePath = Path.getAbsolute(relativePath)
+        const relativePath = `.${PathUtil.sep()}file.txt`
+        const absolutePath = PathUtil.getAbsolute(relativePath)
 
         expect(p.isAbsolute(absolutePath)).toBe(true)
     })
@@ -22,7 +22,7 @@ describe('Path', () => {
 
         // 같은 경로를 반환한다
         it('returns the same path', async () => {
-            const result = Path.getAbsolute(absolutePath)
+            const result = PathUtil.getAbsolute(absolutePath)
 
             expect(result).toEqual(absolutePath)
         })
@@ -31,7 +31,7 @@ describe('Path', () => {
     // basename을 반환한다
     it('returns the basename', () => {
         const filePath = 'dir/file.txt'
-        const basename = Path.basename(filePath)
+        const basename = PathUtil.basename(filePath)
 
         expect(basename).toEqual('file.txt')
     })
@@ -39,7 +39,7 @@ describe('Path', () => {
     // dirname을 반환한다
     it('returns the dirname', () => {
         const filePath = 'dir/file.txt'
-        const dirname = Path.dirname(filePath)
+        const dirname = PathUtil.dirname(filePath)
 
         expect(dirname).toEqual('dir')
     })
@@ -48,16 +48,16 @@ describe('Path', () => {
         let tempDir: string
 
         beforeEach(async () => {
-            tempDir = await Path.createTempDirectory()
+            tempDir = await PathUtil.createTempDirectory()
         })
 
         afterEach(async () => {
-            await Path.delete(tempDir)
+            await PathUtil.delete(tempDir)
         })
 
         // 임시 디렉터리를 생성한다
         it('creates a temporary directory', async () => {
-            const exists = await Path.exists(tempDir)
+            const exists = await PathUtil.exists(tempDir)
             expect(exists).toBe(true)
 
             // OS의 임시 디렉터리 아래에 있는지 확인
@@ -66,10 +66,10 @@ describe('Path', () => {
 
         // 지정한 경로가 존재하는지 비동기로 확인한다
         it('checks asynchronously whether the specified path exists', async () => {
-            const filePath = Path.join(tempDir, 'file.txt')
+            const filePath = PathUtil.join(tempDir, 'file.txt')
             await fs.writeFile(filePath, 'hello world')
 
-            const exists = await Path.exists(filePath)
+            const exists = await PathUtil.exists(filePath)
             expect(exists).toBe(true)
         })
 
@@ -78,59 +78,59 @@ describe('Path', () => {
             let nonExistentPath: string
 
             beforeEach(() => {
-                nonExistentPath = Path.join(tempDir, 'nonexistent.txt')
+                nonExistentPath = PathUtil.join(tempDir, 'nonexistent.txt')
             })
 
             // false를 반환한다
             it('returns false', async () => {
-                const exists = await Path.exists(nonExistentPath)
+                const exists = await PathUtil.exists(nonExistentPath)
                 expect(exists).toBe(false)
             })
         })
 
         // 지정한 경로가 디렉터리인지 확인한다
         it('confirms whether the specified path is a directory', async () => {
-            const exists = await Path.isDirectory(tempDir)
+            const exists = await PathUtil.isDirectory(tempDir)
             expect(exists).toBe(true)
         })
 
         // 디렉터리를 생성하고 삭제한다
         it('creates and deletes a directory', async () => {
-            const dirPath = Path.join(tempDir, 'testdir')
+            const dirPath = PathUtil.join(tempDir, 'testdir')
 
-            await Path.mkdir(dirPath)
-            const exists = await Path.exists(dirPath)
+            await PathUtil.mkdir(dirPath)
+            const exists = await PathUtil.exists(dirPath)
             expect(exists).toBe(true)
 
-            await Path.delete(dirPath)
-            const existsAfterDelete = await Path.exists(dirPath)
+            await PathUtil.delete(dirPath)
+            const existsAfterDelete = await PathUtil.exists(dirPath)
             expect(existsAfterDelete).toBe(false)
         })
 
         // 하위 디렉터리를 나열한다
         it('lists subdirectories', async () => {
-            const subDir1 = Path.join(tempDir, 'subdir1')
-            await Path.mkdir(subDir1)
+            const subDir1 = PathUtil.join(tempDir, 'subdir1')
+            await PathUtil.mkdir(subDir1)
 
-            const subDir2 = Path.join(tempDir, 'subdir2')
-            await Path.mkdir(subDir2)
+            const subDir2 = PathUtil.join(tempDir, 'subdir2')
+            await PathUtil.mkdir(subDir2)
 
-            const srcFilePath = Path.join(tempDir, 'file.txt')
+            const srcFilePath = PathUtil.join(tempDir, 'file.txt')
             await fs.writeFile(srcFilePath, 'hello world')
 
-            const subDirs = await Path.subdirs(tempDir)
+            const subDirs = await PathUtil.subdirs(tempDir)
             expect(subDirs).toEqual(['subdir1', 'subdir2'])
         })
 
         // 파일을 복사한다
         it('copies a file', async () => {
-            const srcFilePath = Path.join(tempDir, 'file.txt')
+            const srcFilePath = PathUtil.join(tempDir, 'file.txt')
             await fs.writeFile(srcFilePath, 'hello world')
 
-            const destFilePath = Path.join(tempDir, 'file_copy.txt')
-            await Path.copy(srcFilePath, destFilePath)
+            const destFilePath = PathUtil.join(tempDir, 'file_copy.txt')
+            await PathUtil.copy(srcFilePath, destFilePath)
 
-            const copiedExists = await Path.exists(destFilePath)
+            const copiedExists = await PathUtil.exists(destFilePath)
             expect(copiedExists).toBe(true)
 
             // 복사된 파일의 내용 확인
@@ -140,21 +140,21 @@ describe('Path', () => {
 
         // 디렉터리를 복사한다
         it('copies a directory', async () => {
-            const srcDirPath = Path.join(tempDir, 'testdir')
-            await Path.mkdir(srcDirPath)
+            const srcDirPath = PathUtil.join(tempDir, 'testdir')
+            await PathUtil.mkdir(srcDirPath)
 
-            const fileInSrcDirPath = Path.join(srcDirPath, 'file.txt')
+            const fileInSrcDirPath = PathUtil.join(srcDirPath, 'file.txt')
             await fs.writeFile(fileInSrcDirPath, 'hello from the original dir')
 
-            const destDirPath = Path.join(tempDir, 'testdir_copy')
-            await Path.copy(srcDirPath, destDirPath)
+            const destDirPath = PathUtil.join(tempDir, 'testdir_copy')
+            await PathUtil.copy(srcDirPath, destDirPath)
 
-            const copiedDirExists = await Path.exists(destDirPath)
+            const copiedDirExists = await PathUtil.exists(destDirPath)
             expect(copiedDirExists).toBe(true)
 
             // 파일도 함께 복사되었는지 확인
-            const copiedFilePath = Path.join(destDirPath, 'file.txt')
-            const copiedFileExists = await Path.exists(copiedFilePath)
+            const copiedFilePath = PathUtil.join(destDirPath, 'file.txt')
+            const copiedFileExists = await PathUtil.exists(copiedFilePath)
             expect(copiedFileExists).toBe(true)
 
             // 복사된 파일의 내용 확인
@@ -170,7 +170,7 @@ describe('Path', () => {
 
             // true를 반환한다
             it('returns true', async () => {
-                const result = await Path.isWritable('/test/path')
+                const result = await PathUtil.isWritable('/test/path')
 
                 expect(result).toBe(true)
                 expect(fs.access).toHaveBeenCalledWith('/test/path', fs.constants.W_OK)
@@ -185,7 +185,7 @@ describe('Path', () => {
 
             // false를 반환한다
             it('returns false', async () => {
-                const result = await Path.isWritable('/test/path')
+                const result = await PathUtil.isWritable('/test/path')
 
                 expect(result).toBe(false)
                 expect(fs.access).toHaveBeenCalledWith('/test/path', fs.constants.W_OK)
@@ -194,16 +194,16 @@ describe('Path', () => {
 
         // 파일을 이동한다
         it('moves a file', async () => {
-            const srcFilePath = Path.join(tempDir, 'file.txt')
+            const srcFilePath = PathUtil.join(tempDir, 'file.txt')
             await fs.writeFile(srcFilePath, 'hello world')
 
-            const destFilePath = Path.join(tempDir, 'move.txt')
-            await Path.move(srcFilePath, destFilePath)
+            const destFilePath = PathUtil.join(tempDir, 'move.txt')
+            await PathUtil.move(srcFilePath, destFilePath)
 
-            const movedExists = await Path.exists(destFilePath)
+            const movedExists = await PathUtil.exists(destFilePath)
             expect(movedExists).toBe(true)
 
-            const srcExists = await Path.exists(srcFilePath)
+            const srcExists = await PathUtil.exists(srcFilePath)
             expect(srcExists).toBe(false)
 
             const content = await fs.readFile(destFilePath, 'utf-8')
@@ -221,10 +221,10 @@ describe('Path', () => {
                 exdevError.code = 'EXDEV'
 
                 const renameSpy = jest.spyOn(fs, 'rename').mockRejectedValueOnce(exdevError)
-                const copySpy = jest.spyOn(Path, 'copy').mockResolvedValueOnce()
-                const deleteSpy = jest.spyOn(Path, 'delete').mockResolvedValueOnce()
+                const copySpy = jest.spyOn(PathUtil, 'copy').mockResolvedValueOnce()
+                const deleteSpy = jest.spyOn(PathUtil, 'delete').mockResolvedValueOnce()
 
-                await Path.move(src, dest)
+                await PathUtil.move(src, dest)
 
                 expect(renameSpy).toHaveBeenCalledWith(src, dest)
                 expect(copySpy).toHaveBeenCalledWith(src, dest)
@@ -241,7 +241,7 @@ describe('Path', () => {
 
                 jest.spyOn(fs, 'rename').mockRejectedValueOnce(error)
 
-                await expect(Path.move('/tmp/src.txt', '/tmp/dest.txt')).rejects.toThrow(
+                await expect(PathUtil.move('/tmp/src.txt', '/tmp/dest.txt')).rejects.toThrow(
                     'permission denied'
                 )
             })
@@ -250,10 +250,10 @@ describe('Path', () => {
         describe('getSize', () => {
             // 파일 크기를 반환한다
             it('returns the file size', async () => {
-                const filePath = Path.join(tempDir, 'original.txt')
+                const filePath = PathUtil.join(tempDir, 'original.txt')
                 await fs.writeFile(filePath, 'Hello, World!')
 
-                const size = await Path.getSize(filePath)
+                const size = await PathUtil.getSize(filePath)
 
                 expect(size).toBe('Hello, World!'.length)
             })
@@ -263,7 +263,7 @@ describe('Path', () => {
             let originalFilePath: string
 
             beforeEach(async () => {
-                originalFilePath = Path.join(tempDir, 'original.txt')
+                originalFilePath = PathUtil.join(tempDir, 'original.txt')
                 await fs.writeFile(originalFilePath, 'Hello, World!')
             })
 
@@ -272,13 +272,13 @@ describe('Path', () => {
                 let identicalFilePath: string
 
                 beforeEach(async () => {
-                    identicalFilePath = Path.join(tempDir, 'identical.txt')
+                    identicalFilePath = PathUtil.join(tempDir, 'identical.txt')
                     await fs.writeFile(identicalFilePath, 'Hello, World!')
                 })
 
                 // true를 반환한다
                 it('returns true', async () => {
-                    const areEqual = await Path.areEqual(originalFilePath, identicalFilePath)
+                    const areEqual = await PathUtil.areEqual(originalFilePath, identicalFilePath)
                     expect(areEqual).toBe(true)
                 })
             })
@@ -288,13 +288,13 @@ describe('Path', () => {
                 let differentFilePath: string
 
                 beforeEach(async () => {
-                    differentFilePath = Path.join(tempDir, 'different.txt')
+                    differentFilePath = PathUtil.join(tempDir, 'different.txt')
                     await fs.writeFile(differentFilePath, 'This is different')
                 })
 
                 // false를 반환한다
                 it('returns false', async () => {
-                    const areEqual = await Path.areEqual(originalFilePath, differentFilePath)
+                    const areEqual = await PathUtil.areEqual(originalFilePath, differentFilePath)
                     expect(areEqual).toBe(false)
                 })
             })

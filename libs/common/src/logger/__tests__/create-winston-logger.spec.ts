@@ -1,7 +1,7 @@
 import type winston from 'winston'
 import { isDebuggingEnabled } from '@mannercode/testing'
 import { readFile } from 'fs/promises'
-import { Path, sleep } from '../../utils'
+import { PathUtil, sleep } from '../../utils'
 import { createWinstonLogger } from '../create-winston-logger'
 
 const MESSAGE = Symbol.for('message')
@@ -20,7 +20,7 @@ describe('createWinstonLogger', () => {
     let tempDir: string
 
     beforeEach(async () => {
-        tempDir = await Path.createTempDirectory()
+        tempDir = await PathUtil.createTempDirectory()
 
         logger = createWinstonLogger({
             consoleLogLevel: isDebuggingEnabled() ? 'verbose' : 'silent',
@@ -32,11 +32,11 @@ describe('createWinstonLogger', () => {
 
     afterEach(async () => {
         logger.close()
-        await Path.delete(tempDir)
+        await PathUtil.delete(tempDir)
     })
 
     async function getLogEntry() {
-        const content = await readFile(Path.join(tempDir, 'current.log'), 'utf-8')
+        const content = await readFile(PathUtil.join(tempDir, 'current.log'), 'utf-8')
         const entry = JSON.parse(content)
         return entry
     }

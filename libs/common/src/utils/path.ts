@@ -3,7 +3,7 @@ import { tmpdir } from 'os'
 import p from 'path'
 import { Checksum } from './checksum'
 
-export class Path {
+export class PathUtil {
     static basename(path: string): string {
         return p.basename(path)
     }

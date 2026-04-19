@@ -1,4 +1,4 @@
-export class Time {
+export class TimeUtil {
     /**
      * Converts a millisecond value into a time format string.
      * The returned string can include d (days), h (hours), m (minutes), s (seconds), ms (milliseconds) units,

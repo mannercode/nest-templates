@@ -1,4 +1,4 @@
-import { Byte } from '../byte'
+import { ByteUtil } from '../byte'
 
 describe('Byte', () => {
     describe('fromString', () => {
@@ -14,7 +14,7 @@ describe('Byte', () => {
             ['-1KB', -1024],
             ['1GB 256MB 128KB', 1 * 1024 * 1024 * 1024 + 256 * 1024 * 1024 + 128 * 1024]
         ])('converts %s to bytes', (input, expected) => {
-            expect(Byte.fromString(input)).toEqual(expected)
+            expect(ByteUtil.fromString(input)).toEqual(expected)
         })
 
         // 단위가 소문자일 때
@@ -27,7 +27,7 @@ describe('Byte', () => {
                 ['1gb', 1024 * 1024 * 1024],
                 ['1tb', 1024 * 1024 * 1024 * 1024]
             ])('converts %s to bytes', (input, expected) => {
-                expect(Byte.fromString(input)).toEqual(expected)
+                expect(ByteUtil.fromString(input)).toEqual(expected)
             })
         })
 
@@ -35,7 +35,7 @@ describe('Byte', () => {
         describe('when the format is invalid', () => {
             // Error를 던진다
             it.each(['invalid', '123', '123XB', '1KB -'])('throws Error', (input) => {
-                expect(() => Byte.fromString(input)).toThrow()
+                expect(() => ByteUtil.fromString(input)).toThrow()
             })
         })
     })
@@ -51,7 +51,7 @@ describe('Byte', () => {
             [-1024, '-1KB'],
             [1 * 1024 * 1024 * 1024 + 256 * 1024 * 1024 + 128 * 1024, '1GB256MB128KB']
         ])('converts %s to a string', (input, expected) => {
-            expect(Byte.toString(input)).toEqual(expected)
+            expect(ByteUtil.toString(input)).toEqual(expected)
         })
     })
 })
