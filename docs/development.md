@@ -43,26 +43,26 @@ infra/local/              # 로컬 인프라 Docker Compose
 | `npm run start`                  | 빌드된 앱 실행                                                    |
 | `npm run dev`                    | Watch 모드로 개발 실행                                            |
 | `npm test`                       | 단위 테스트 실행 (coverage 포함)                                  |
-| `npm run test:e2e`               | E2E 테스트 실행 (인프라 + 앱 자동 재시작)                         |
-| `npm run test:stress`            | E2E spec 반복 부하 테스트 (단일 인스턴스)                         |
-| `npm run test:stress-distributed -- <scenario>` | 4-replica cross-replica 시나리오 테스트 — [testing.md#9-분산-스트레스-테스트](testing.md#9-분산-스트레스-테스트) |
+| `npm run test:smoke`             | Smoke 테스트 (compose up → specs/run.sh → down)                   |
+| `npm run test:load`              | 단일 인스턴스 반복 부하 테스트 (specs 를 N×M 회 동시 반복)         |
+| `npm run test:stress -- <scenario>` | 4-replica cross-replica 시나리오 테스트 — [testing.md#9-분산-스트레스-테스트](testing.md#9-분산-스트레스-테스트) |
 | `npm run lint`                   | TypeScript 타입 체크, ESLint, Prettier 검사                       |
 | `npm run format`                 | ESLint 자동 수정 및 Prettier 포맷팅                               |
 | `npm run api:reset`              | 앱 서비스 초기화 (down + up + wait)                               |
 
 ### MSA
 
-| Script              | Description                                             |
-| ------------------- | ------------------------------------------------------- |
-| `npm run build`     | 특정 앱 빌드 (`TARGET_APP=cores npm run build`)         |
-| `npm run start`     | 빌드된 앱 실행 (`TARGET_APP=cores npm run start`)       |
-| `npm run dev`       | Watch 모드로 개발 실행 (`TARGET_APP=cores npm run dev`) |
-| `npm test`          | 전체 테스트 실행 (단위 + E2E)                           |
-| `npm run test:unit` | 단위 테스트 실행 (coverage 포함)                        |
-| `npm run test:e2e`  | E2E 테스트 실행 (인프라 + 앱 자동 재시작)               |
-| `npm run lint`      | TypeScript 타입 체크, ESLint, Prettier 검사             |
-| `npm run format`    | ESLint 자동 수정 및 Prettier 포맷팅                     |
-| `npm run api:reset` | 앱 서비스 초기화 (down + up + wait)                     |
+| Script                | Description                                             |
+| --------------------- | ------------------------------------------------------- |
+| `npm run build`       | 특정 앱 빌드 (`TARGET_APP=cores npm run build`)         |
+| `npm run start`       | 빌드된 앱 실행 (`TARGET_APP=cores npm run start`)       |
+| `npm run dev`         | Watch 모드로 개발 실행 (`TARGET_APP=cores npm run dev`) |
+| `npm run test:unit`   | 단위 테스트 실행 (coverage 포함)                        |
+| `npm run test:smoke`  | Smoke 테스트 (compose up → specs/run.sh → down)         |
+| `npm run test:load`   | 단일 인스턴스 반복 부하 테스트                          |
+| `npm run lint`        | TypeScript 타입 체크, ESLint, Prettier 검사             |
+| `npm run format`      | ESLint 자동 수정 및 Prettier 포맷팅                     |
+| `npm run api:reset`   | 앱 서비스 초기화 (down + up + wait)                     |
 
 인프라는 Dev Container가 시작 시 자동으로 올린다. 수동 관리가 필요하면 `bash .devcontainer/infra/reset.sh`를 실행한다.
 
@@ -92,7 +92,7 @@ Docker 이미지 태그와 인프라 접속 정보(MongoDB, Redis, NATS, MinIO, 
 1. 호스트에서 [Git credentials](https://code.visualstudio.com/remote/advancedcontainers/sharing-git-credentials)를 설정한다.
 2. VS Code에서 "Reopen in Container" 명령을 실행한다.
 3. Dev Container는 `.devcontainer/Dockerfile`(베이스 `node:24-slim`)을 사용하며, `postCreateCommand`로 `npm install`, `postStartCommand`로 인프라를 자동으로 시작한다.
-4. Dev Container 안에서도 별도 환경 변수 설정 없이 `npm run test:e2e:mono`를 바로 실행할 수 있다.
+4. Dev Container 안에서도 별도 환경 변수 설정 없이 `npm run test:smoke -w apis/mono` 를 바로 실행할 수 있다.
 
 ---
 
@@ -106,10 +106,7 @@ Docker 이미지 태그와 인프라 접속 정보(MongoDB, Redis, NATS, MinIO, 
 
 ### 작업 (`.vscode/tasks.json`)
 
-| Task            | Description                   |
-| --------------- | ----------------------------- |
-| `all:test:unit` | `npm run test:unit` 실행.     |
-| `mono:test:e2e` | `npm run test:e2e:mono` 실행. |
+`.vscode/tasks.json` 의 "Tests" 태스크에서 `pickString` 으로 자주 쓰는 조합 (단위/smoke/load/stress) 을 선택해 실행한다.
 
 ---
 

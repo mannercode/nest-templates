@@ -80,7 +80,7 @@ jobs:
                       set -Eeuo pipefail
                       npm run build
                       bash .github/scripts/repeat.sh 70 bash .github/scripts/bootup-test.sh msa
-    stress-mono:
+    load-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
         steps:
@@ -92,7 +92,7 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 80 npm run test:stress -w apis/mono
+                      bash .github/scripts/repeat.sh 80 npm run test:load -w apis/mono
     stress-sse-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
@@ -105,7 +105,7 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 npm run test:stress-distributed -w apis/mono -- sse
+                      bash .github/scripts/repeat.sh 60 npm run test:stress -w apis/mono -- sse
     stress-customer-race-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
@@ -118,7 +118,7 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 npm run test:stress-distributed -w apis/mono -- customer-race
+                      bash .github/scripts/repeat.sh 60 npm run test:stress -w apis/mono -- customer-race
     stress-ticket-holding-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
@@ -131,7 +131,7 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 npm run test:stress-distributed -w apis/mono -- ticket-holding-race
+                      bash .github/scripts/repeat.sh 60 npm run test:stress -w apis/mono -- ticket-holding-race
     stress-showtime-overlap-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
@@ -144,7 +144,7 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 npm run test:stress-distributed -w apis/mono -- showtime-overlap-race
+                      bash .github/scripts/repeat.sh 60 npm run test:stress -w apis/mono -- showtime-overlap-race
     stress-purchase-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
@@ -157,4 +157,4 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 npm run test:stress-distributed -w apis/mono -- purchase-double-spend
+                      bash .github/scripts/repeat.sh 60 npm run test:stress -w apis/mono -- purchase-double-spend

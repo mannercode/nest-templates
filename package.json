@@ -10,10 +10,11 @@
         "clean": "npm run clean --workspaces --if-present && git clean -fdX ",
         "lint": "npm run lint --workspaces",
         "format": "npm run format --workspaces",
-        "test:unit": "npm run test:unit --workspaces",
-        "test:e2e": "npm run test:e2e --workspaces",
+        "test:unit": "npm run test:unit --workspaces --if-present",
+        "test:smoke": "npm run test:smoke --workspaces --if-present",
+        "test:load": "npm run test:load --workspaces --if-present",
         "test:stress": "npm run test:stress --workspaces --if-present",
-        "atoz": "npm run clean && npm install && npm run build && npm run lint && npm run test:unit && npm run test:e2e"
+        "atoz": "npm run clean && npm install && npm run build && npm run lint && npm run test:unit && npm run test:smoke"
     },
     "devDependencies": {
         "@aws-sdk/client-s3": "3.1032.0",

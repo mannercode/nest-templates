@@ -246,9 +246,9 @@ coverageThreshold: {
 ### 9.2. 실행
 
 ```bash
-npm run test:stress-distributed -w apis/mono -- <scenario>
+npm run test:stress -w apis/mono -- <scenario>
 # e.g.
-npm run test:stress-distributed -w apis/mono -- purchase-double-spend
+npm run test:stress -w apis/mono -- purchase-double-spend
 ```
 
 래퍼 [run.sh](../apis/mono/tests/stress/run.sh) 가 compose 스택을 빌드·기동하고 해당 스크립트를 실행한 뒤 정리한다. 실패 시 컨테이너 로그 300줄을 덤프한다.

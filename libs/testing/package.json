@@ -6,8 +6,7 @@
         "build": "tsc -p tsconfig.build.json",
         "lint": "tsc --noEmit && eslint src/ --max-warnings=0 && prettier --check src/",
         "format": "eslint src/ --fix && prettier --write src/",
-        "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --no-cache",
-        "test:e2e": "echo 'skipped (no e2e tests)'"
+        "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --no-cache"
     },
     "dependencies": {
         "superagent": "10.3.0"

@@ -2,9 +2,11 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+APP_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+COMPOSE_DIR="${APP_DIR}/deploy"
+cd "$COMPOSE_DIR"
 
-ENV_FILE="${ENV_FILE:-../.env}"
+ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
 
 if [ ! -f "$ENV_FILE" ]; then
     echo "Error: $ENV_FILE not found."
@@ -15,7 +17,7 @@ CLIENTS=${CLIENTS:-10}
 ROUNDS=${ROUNDS:-20}
 LISTEN_PORT=${LISTEN_PORT:-3100}
 SERVER_URL="http://localhost:${LISTEN_PORT}"
-API_SPEC_DIR="${SCRIPT_DIR}/specs"
+API_SPEC_DIR="${APP_DIR}/specs"
 LOG_DIR="${SCRIPT_DIR}/_output/logs/$(date '+%Y%m%d_%H%M%S')"
 
 RESET='\033[0m'
@@ -85,7 +87,7 @@ run_client() {
     local round=$2
     local log_file="${LOG_DIR}/client_${client_id}_round_${round}.log"
 
-    SERVER_URL="${SERVER_URL}" bash "${API_SPEC_DIR}/run-all.sh" >"${log_file}" 2>&1
+    SERVER_URL="${SERVER_URL}" bash "${API_SPEC_DIR}/run.sh" >"${log_file}" 2>&1
     return $?
 }
 

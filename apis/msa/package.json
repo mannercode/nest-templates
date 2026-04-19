@@ -9,8 +9,8 @@
         "clean": "docker compose --env-file .env -f deploy/compose.yml down -v -t 0",
         "dev": "nest start ${TARGET_APP} --watch",
         "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --no-cache --coverage --config ../jest.config.js",
-        "test:e2e": "bash deploy/test-e2e.sh",
-        "test:stress": "bash deploy/test-stress.sh",
+        "test:smoke": "bash deploy/smoke.sh",
+        "test:load": "bash tests/load/run.sh",
         "format": "eslint src/ --fix && prettier --write src/",
         "lint": "tsc --noEmit && eslint src/ --max-warnings=0 && prettier --check src/"
     },

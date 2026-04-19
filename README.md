@@ -68,30 +68,28 @@ cd apis/msa
 npm run test:unit
 ```
 
-### 4. E2E 테스트
+### 4. Smoke 테스트
 
-E2E 테스트는 Docker Compose로 앱을 빌드·실행한 뒤, curl 기반 셸 스크립트로 API를 검증한다.
+Smoke 테스트는 Docker Compose로 앱을 빌드·실행한 뒤, `specs/` 의 curl 기반 셸 스크립트로 API 를 검증한다. 스펙은 실행 가능한 API 문서 역할도 겸한다.
 
 ```bash
 cd apis/mono
-npm run test:e2e
+npm run test:smoke
 ```
 
-E2E 스펙은 `tests/e2e/specs/` 디렉토리에 `.spec` 셸 스크립트로 작성한다.
+스펙은 `specs/` 디렉토리에 `.spec` 셸 스크립트로 작성한다.
 
 ```
-tests/e2e/
-├── run-all.sh              # 전체 스펙 실행
-├── run-select.sh           # 스펙 선택 실행 (대화형)
-├── assets/                 # 테스트용 파일 (이미지 등)
-└── specs/
-    ├── _common.fixture     # 공통 셋업
-    ├── customers.spec
-    ├── movies.spec
-    ├── theaters.spec
-    ├── booking.spec
-    ├── purchases.spec
-    └── showtime-creation.spec
+specs/
+├── run.sh                 # 전체 스펙 실행
+├── _common.fixture        # 공통 셋업
+├── assets/                # 테스트용 파일 (이미지 등)
+├── customers.spec
+├── movies.spec
+├── theaters.spec
+├── booking.spec
+├── purchases.spec
+└── showtime-creation.spec
 ```
 
 스펙 파일 예시 (`customers.spec`):
@@ -116,7 +114,7 @@ MSA도 동일한 구조다.
 
 ```bash
 cd apis/msa
-npm run test:e2e
+npm run test:smoke
 ```
 
 ### 5. 분산 스트레스 테스트 (mono)
@@ -125,7 +123,7 @@ npm run test:e2e
 
 ```bash
 cd apis/mono
-npm run test:stress-distributed -- <scenario>
+npm run test:stress -- <scenario>
 # scenario: sse | customer-race | ticket-holding-race | showtime-overlap-race | purchase-double-spend
 ```
 

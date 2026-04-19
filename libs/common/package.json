@@ -5,7 +5,6 @@
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
         "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --no-cache --coverage",
-        "test:e2e": "echo 'skipped (no e2e tests)'",
         "lint": "tsc --noEmit && eslint src/ --max-warnings=0 && prettier --check src/",
         "format": "eslint src/ --fix && prettier --write src/"
     },

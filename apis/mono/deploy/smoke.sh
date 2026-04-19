@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "$SCRIPT_DIR"
 
 ENV_FILE="${ENV_FILE:-../.env}"
@@ -19,4 +20,4 @@ trap cleanup EXIT
 docker compose --env-file "$ENV_FILE" up -d --build
 docker wait api-setup && docker rm api-setup
 
-bash specs/run-all.sh
+bash "${APP_DIR}/specs/run.sh"

@@ -39,13 +39,14 @@
             "description": "test",
             "options": [
                 "npm run test:unit",
-                "npm run test:e2e",
-                "npm run test:stress",
+                "npm run test:smoke",
+                "npm run test:load -w apis/mono",
+                "npm run test:stress -w apis/mono -- sse",
                 "npm run test:unit -w libs",
                 "npm run test:unit -w apis/mono",
                 "npm run test:unit -w apis/msa",
-                "npm run test:e2e -w apis/mono",
-                "npm run test:e2e -w apis/msa",
+                "npm run test:smoke -w apis/mono",
+                "npm run test:smoke -w apis/msa",
                 "npm run atoz"
             ]
         }

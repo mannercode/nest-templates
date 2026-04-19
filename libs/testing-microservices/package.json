@@ -5,9 +5,7 @@
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
         "lint": "tsc --noEmit && eslint src/ --max-warnings=0 && prettier --check src/",
-        "format": "eslint src/ --fix && prettier --write src/",
-        "test:unit": "echo 'skipped (no unit tests)'",
-        "test:e2e": "echo 'skipped (no e2e tests)'"
+        "format": "eslint src/ --fix && prettier --write src/"
     },
     "peerDependencies": {
         "@mannercode/testing": "*",
