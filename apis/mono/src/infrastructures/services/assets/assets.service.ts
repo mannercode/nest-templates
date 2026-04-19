@@ -1,4 +1,12 @@
-import { S3ObjectService, DateUtil, InjectS3Object, mapDocToDto, pickIds } from '@mannercode/common'
+import {
+    CacheService,
+    DateUtil,
+    InjectCache,
+    InjectS3Object,
+    mapDocToDto,
+    pickIds,
+    S3ObjectService
+} from '@mannercode/common'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
 import { Rules } from 'config'
@@ -7,21 +15,33 @@ import { AssetPresignedUploadDto, CreateAssetDto, FinalizeAssetDto, AssetDto } f
 import { AssetErrors } from './errors'
 import { Asset } from './models'
 
+const CLEANUP_LOCK_KEY = 'cleanup-expired-uploads'
+// Long enough that the worst-case cleanup finishes before the lock auto-expires,
+// yet short enough that a crashed runner can't starve the job for longer than
+// one full cron interval.
+const CLEANUP_LOCK_TTL_MS = 5 * 60 * 1000
+
 @Injectable()
 export class AssetsService {
     constructor(
         private readonly repository: AssetsRepository,
-        @InjectS3Object() private readonly s3Service: S3ObjectService
+        @InjectS3Object() private readonly s3Service: S3ObjectService,
+        @InjectCache('assets') private readonly cache: CacheService
     ) {}
 
     @Cron(Rules.Asset.expiredUploadCleanupCron, { name: 'assets.cleanupExpiredUploads' })
     async cleanupExpiredUploads() {
-        const expiresBefore = this.getExpirationThreshold()
-        const expiredAssets = await this.repository.findExpiredIncomplete(expiresBefore)
+        // Every replica runs this cron, so the actual work must be guarded by a
+        // distributed lock. withLock uses Redis SET NX + a token-matched DEL so
+        // exactly one replica does the cleanup in a given interval.
+        await this.cache.withLock(CLEANUP_LOCK_KEY, CLEANUP_LOCK_TTL_MS, async () => {
+            const expiresBefore = this.getExpirationThreshold()
+            const expiredAssets = await this.repository.findExpiredIncomplete(expiresBefore)
 
-        if (0 < expiredAssets.length) {
-            await this.deleteMany(pickIds(expiredAssets))
-        }
+            if (0 < expiredAssets.length) {
+                await this.deleteMany(pickIds(expiredAssets))
+            }
+        })
     }
 
     async create(createDto: CreateAssetDto): Promise<AssetPresignedUploadDto> {

@@ -54,6 +54,48 @@ export class CacheService {
         }
     }
 
+    /**
+     * Distributed lock scoped to this cache. Exactly one caller holding the
+     * key runs `fn`; concurrent callers return `{ ran: false }`. The lock is
+     * released when `fn` settles (even on throw); if the process dies, the
+     * TTL bounds how long the key stays stuck.
+     *
+     * - lock key lives at `${prefix}:lock:${key}`
+     * - ttlMs should be larger than the worst-case runtime of `fn`; it caps
+     *   the duration a crashed process can starve others
+     * - only the owner (matching token) deletes the key, so an expired lock
+     *   that a peer has already re-acquired is not clobbered
+     */
+    async withLock<T>(
+        key: string,
+        ttlMs: number,
+        fn: () => Promise<T> | T
+    ): Promise<{ ran: false } | { ran: true; result: T }> {
+        if (ttlMs <= 0) throw new Error('Lock TTL must be a positive integer (ms)')
+
+        const token = `${process.pid}:${Date.now()}:${Math.random()}`
+        const lockKey = this.getKey(`lock:${key}`)
+        const acquired = await this.redis.set(lockKey, token, 'PX', ttlMs, 'NX')
+
+        if (acquired !== 'OK') return { ran: false }
+
+        try {
+            return { ran: true, result: await fn() }
+        } finally {
+            await this.redis.eval(
+                `
+                if redis.call('get', KEYS[1]) == ARGV[1] then
+                    return redis.call('del', KEYS[1])
+                end
+                return 0
+                `,
+                1,
+                lockKey,
+                token
+            )
+        }
+    }
+
     private getKey(key: string) {
         return `${this.prefix}:${key}`
     }

@@ -114,4 +114,67 @@ describe('CacheService', () => {
             expect(storedValue).toBe('value')
         })
     })
+
+    describe('withLock', () => {
+        // 락을 점유한 중에는 다른 호출이 fn 을 실행하지 않는다
+        it('allows only one concurrent runner per key', async () => {
+            let running = 0
+            let maxConcurrent = 0
+            let executedCount = 0
+
+            const runners = Array.from({ length: 20 }, () =>
+                fix.cacheService.withLock('job', 5_000, async () => {
+                    running += 1
+                    maxConcurrent = Math.max(maxConcurrent, running)
+                    executedCount += 1
+                    await sleep(20)
+                    running -= 1
+                })
+            )
+
+            const results = await Promise.all(runners)
+
+            expect(maxConcurrent).toBe(1)
+            expect(executedCount).toBe(results.filter((r) => r.ran).length)
+            expect(results.filter((r) => r.ran)).toHaveLength(executedCount)
+            expect(executedCount).toBeGreaterThanOrEqual(1)
+        }, 30_000)
+
+        // 락 보유자만 해제할 수 있어야 한다 (만료 후 다른 runner 의 락은 안 지운다)
+        it('releases only the lock it acquired', async () => {
+            await fix.cacheService.set('lock:job', 'other-runner', 10_000)
+
+            const result = await fix.cacheService.withLock('job', 5_000, async () => {
+                throw new Error('should not run while another owner holds lock')
+            })
+
+            expect(result.ran).toBe(false)
+            // 락 값이 바뀌지 않았는지 확인
+            const value = await fix.cacheService.get('lock:job')
+            expect(value).toBe('other-runner')
+        })
+
+        // TTL 이 0 이하이면 예외를 던진다
+        it('throws when TTL is zero or negative', async () => {
+            await expect(
+                fix.cacheService.withLock('job', 0, async () => null)
+            ).rejects.toThrow('Lock TTL must be a positive integer (ms)')
+            await expect(
+                fix.cacheService.withLock('job', -1, async () => null)
+            ).rejects.toThrow('Lock TTL must be a positive integer (ms)')
+        })
+
+        // fn 이 예외를 던져도 락을 해제한다
+        it('releases the lock even when fn throws', async () => {
+            await expect(
+                fix.cacheService.withLock('job', 5_000, () => {
+                    throw new Error('boom')
+                })
+            ).rejects.toThrow('boom')
+
+            // 바로 다음 호출이 fn 을 실행할 수 있어야 한다
+            const next = await fix.cacheService.withLock('job', 5_000, async () => 'ok')
+            expect(next).toEqual({ ran: true, result: 'ok' })
+        })
+    })
 })
