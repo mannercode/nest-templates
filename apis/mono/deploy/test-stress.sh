@@ -121,10 +121,14 @@ for ((round = 1; round <= ROUNDS; round++)); do
         echo ""
         echo -e "${BOLD}Capturing container state at round ${round}...${RESET}"
         docker compose --env-file "$ENV_FILE" ps -a 2>/dev/null || true
+        docker stats --no-stream 2>/dev/null || true
         for cid in $(docker compose --env-file "$ENV_FILE" ps -aq 2>/dev/null); do
             cname=$(docker inspect --format '{{.Name}} ({{.State.Status}})' "$cid" 2>/dev/null || echo "$cid")
-            echo -e "${BOLD}--- logs ${cname} (last 50) ---${RESET}"
-            docker logs --tail 50 "$cid" 2>&1 || true
+            # nginx 는 요청 당 1 access log line 이라 failure context 를 찾으려면 넉넉히 캡처.
+            # App replicas 도 BullMQ / saga 활동으로 많은 log 를 찍으므로 300 line 정도면
+            # 직전 수 초 상황을 담기 충분하다.
+            echo -e "${BOLD}--- logs ${cname} (last 300) ---${RESET}"
+            docker logs --tail 300 "$cid" 2>&1 || true
             echo ""
         done
         break
