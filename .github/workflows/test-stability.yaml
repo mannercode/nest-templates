@@ -145,3 +145,16 @@ jobs:
                   runCmd: |
                       set -Eeuo pipefail
                       bash .github/scripts/repeat.sh 60 npm run test:stress-distributed -w apis/mono -- showtime-overlap-race
+    stress-purchase-mono:
+        runs-on: ubuntu-24.04-arm
+        timeout-minutes: 360
+        steps:
+            - uses: actions/checkout@v5
+            - name: Run in devcontainer
+              uses: devcontainers/ci@v0.3
+              with:
+                  configFile: .devcontainer/devcontainer.json
+                  push: never
+                  runCmd: |
+                      set -Eeuo pipefail
+                      bash .github/scripts/repeat.sh 60 npm run test:stress-distributed -w apis/mono -- purchase-double-spend

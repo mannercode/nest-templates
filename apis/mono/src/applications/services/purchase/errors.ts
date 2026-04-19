@@ -1,4 +1,9 @@
 export const PurchaseErrors = {
+    AlreadySold: (ticketIds: string[]) => ({
+        code: 'ERR_PURCHASE_ALREADY_SOLD',
+        message: 'One or more tickets have already been sold.',
+        ticketIds
+    }),
     LimitExceeded: (maxCount: number) => ({
         code: 'ERR_PURCHASE_LIMIT_EXCEEDED',
         message: 'You have exceeded the maximum number of items allowed for purchase.',

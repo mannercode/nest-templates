@@ -1,4 +1,6 @@
+import { CacheModule } from '@mannercode/common'
 import { Module } from '@nestjs/common'
+import { getProjectId, RedisConfigModule } from 'config'
 import { PurchaseRecordsModule, ShowtimesModule, TicketHoldingModule, TicketsModule } from 'cores'
 import { PaymentsModule } from 'infrastructures'
 import { PurchaseEvents } from './purchase.events'
@@ -12,7 +14,12 @@ import { TicketPurchaseService } from './services'
         TicketHoldingModule,
         PurchaseRecordsModule,
         ShowtimesModule,
-        PaymentsModule
+        PaymentsModule,
+        CacheModule.register({
+            name: 'purchase',
+            prefix: `cache:${getProjectId()}`,
+            redisName: RedisConfigModule.connectionName
+        })
     ],
     providers: [PurchaseService, TicketPurchaseService, PurchaseEvents]
 })

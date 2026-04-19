@@ -161,6 +161,24 @@ describe('PurchaseService', () => {
                 })
             })
 
+            // 티켓이 이미 판매된 상태일 때
+            describe('when the tickets have already been sold', () => {
+                beforeEach(async () => {
+                    const createDto = buildCreatePurchaseDto(heldTickets)
+                    await fix.httpClient.post('/purchases').body(createDto).created()
+                })
+
+                // 409 Conflict를 반환한다
+                it('returns 409 Conflict', async () => {
+                    const createDto = buildCreatePurchaseDto(heldTickets)
+
+                    await fix.httpClient
+                        .post('/purchases')
+                        .body(createDto)
+                        .conflict(Errors.Purchase.AlreadySold(pickIds(heldTickets)))
+                })
+            })
+
             // 구매 기록 생성이 실패할 때
             describe('when purchase record creation fails', () => {
                 // 결제를 취소한다

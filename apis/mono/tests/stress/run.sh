@@ -2,17 +2,20 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+MONO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+COMPOSE_DIR="${MONO_DIR}/deploy"
 
 TEST_NAME="${1:?Usage: $0 <test-name>}"
-TEST_SCRIPT="${SCRIPT_DIR}/stress/${TEST_NAME}.js"
+TEST_SCRIPT="${SCRIPT_DIR}/${TEST_NAME}.js"
 
 if [ ! -f "$TEST_SCRIPT" ]; then
     echo "Error: no stress script at ${TEST_SCRIPT}"
     exit 1
 fi
 
-ENV_FILE="${ENV_FILE:-../.env}"
+cd "$COMPOSE_DIR"
+
+ENV_FILE="${ENV_FILE:-${MONO_DIR}/.env}"
 LISTEN_PORT="${LISTEN_PORT:-3000}"
 SERVER_URL="http://localhost:${LISTEN_PORT}"
 
