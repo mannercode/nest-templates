@@ -42,7 +42,7 @@ export class QueryBuilder<T> {
         return this
     }
 
-    addIn(field: string, ids?: string[] | undefined): this {
+    addIn(field: string, ids?: string[]): this {
         if (ids && ids.length > 0) {
             const uniqueIds = uniq(ids)
 
@@ -99,17 +99,17 @@ export function assignIfDefined<
     target[key] = transform ? transform(value as NonNullable<Source[K]>) : value
 }
 
-export function mapDocToDto<DOC extends object, DTO extends object, K extends keyof DTO>(
-    doc: DOC,
-    dtoClass: new () => DTO,
+export function mapDocToDto<Doc extends object, Dto extends object, K extends keyof Dto>(
+    doc: Doc,
+    dtoClass: new () => Dto,
     keys: K[]
-): DTO {
+): Dto {
     const dto = new dtoClass()
     const record = doc as Record<string, unknown>
 
     for (const key of keys) {
         const value = record[key as string]
-        dto[key] = value as DTO[K]
+        dto[key] = value as Dto[K]
     }
 
     return dto

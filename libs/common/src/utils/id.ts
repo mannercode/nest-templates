@@ -33,15 +33,7 @@ export function generateShortId(length: number = 15): string {
 /**
  * Extracts the 'id' property from each object in an array.
  * 객체 배열에서 각 객체의 'id' 프로퍼티를 추출
- *
- * @template T - An object type with a string 'id' property
- * @param {T[]} items - The array of objects
- * @returns {string[]} An array of id values
  */
 export function pickIds<T extends { id: string }>(items: T[]): string[] {
     return items.map((item) => item.id)
-}
-
-export async function sleep(timeoutInMs: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, timeoutInMs))
 }

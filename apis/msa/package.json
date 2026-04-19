@@ -6,7 +6,7 @@
         "start": "node _output/dist/${TARGET_APP}/index.js",
         "build": "echo 'skipped (use npm run bundle)'",
         "bundle": "nest build ${TARGET_APP} -b webpack --webpackPath ./webpack.config.js",
-        "clean": "docker compose -f deploy/compose.yml down -v -t 0",
+        "clean": "docker compose --env-file .env -f deploy/compose.yml down -v -t 0",
         "dev": "nest start ${TARGET_APP} --watch",
         "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --no-cache --coverage --config ../jest.config.js",
         "test:e2e": "bash deploy/test-e2e.sh",

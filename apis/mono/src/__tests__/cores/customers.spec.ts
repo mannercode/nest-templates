@@ -86,6 +86,23 @@ describe('CustomersService', () => {
                     .badRequest(Errors.RequestValidation.Failed(expect.any(Array)))
             })
         })
+
+        // 중복 키 이외의 저장 오류가 발생할 때
+        describe('when the repository rejects with a non-duplicate error', () => {
+            // 오류를 그대로 전파한다 (ConflictException 으로 변환하지 않는다)
+            it('propagates the error', async () => {
+                const { CustomersService } = await import('cores')
+                const service = fix.module.get(CustomersService)
+
+                // birthDate 를 유효하지 않은 형식으로 넣어 Mongoose CastError 유발.
+                // 컨트롤러 레벨의 class-validator 를 우회하기 위해 service 를 직접 호출한다.
+                const invalidDto = buildCreateCustomerDto({
+                    birthDate: 'not-a-date' as unknown as Date
+                })
+
+                await expect(service.create(invalidDto)).rejects.toThrow()
+            })
+        })
     })
 
     describe('GET /customers/:id', () => {
@@ -249,6 +266,36 @@ describe('CustomersService', () => {
                     .get('/customers')
                     .query({ wrong: 'value' })
                     .badRequest(Errors.RequestValidation.Failed(expect.any(Array)))
+            })
+        })
+    })
+
+    describe('CustomersRepository.existsByEmail', () => {
+        const email = 'exists-check@mail.com'
+
+        // 같은 이메일의 고객이 존재할 때
+        describe('when a customer with the email exists', () => {
+            beforeEach(async () => {
+                await createCustomer(fix, { email })
+            })
+
+            // true를 반환한다
+            it('returns true', async () => {
+                const { CustomersRepository } = await import('cores')
+                const repo = fix.module.get(CustomersRepository)
+
+                await expect(repo.existsByEmail(email)).resolves.toBe(true)
+            })
+        })
+
+        // 같은 이메일의 고객이 없을 때
+        describe('when no customer with the email exists', () => {
+            // false를 반환한다
+            it('returns false', async () => {
+                const { CustomersRepository } = await import('cores')
+                const repo = fix.module.get(CustomersRepository)
+
+                await expect(repo.existsByEmail('does-not-exist@mail.com')).resolves.toBe(false)
             })
         })
     })
