@@ -4,6 +4,7 @@ import { model, Types } from 'mongoose'
 import { createCrudSchema, CrudSchema } from '../crud.schema'
 import {
     assignIfDefined,
+    isDuplicateKeyError,
     mapDocToDto,
     newObjectIdString,
     objectId,
@@ -279,6 +280,31 @@ describe('mapDocToDto', () => {
         const dto = mapDocToDto(doc, SampleDto, ['id', 'name', 'optional'])
 
         expect(dto).toEqual({ id: expect.any(String), name: 'name', optional: undefined })
+    })
+})
+
+describe('isDuplicateKeyError', () => {
+    // MongoDB E11000 에러 객체일 때 true
+    it('returns true for a MongoDB E11000 error object', () => {
+        expect(isDuplicateKeyError({ code: 11000, message: 'duplicate' })).toBe(true)
+    })
+
+    // code 가 11000 이 아닐 때 false
+    it('returns false when code is not 11000', () => {
+        expect(isDuplicateKeyError({ code: 121 })).toBe(false)
+    })
+
+    // code 속성이 없을 때 false
+    it('returns false when code property is missing', () => {
+        expect(isDuplicateKeyError({ message: 'boom' })).toBe(false)
+    })
+
+    // null 또는 원시 타입일 때 false
+    it('returns false for null or primitive values', () => {
+        expect(isDuplicateKeyError(null)).toBe(false)
+        expect(isDuplicateKeyError(undefined)).toBe(false)
+        expect(isDuplicateKeyError('error')).toBe(false)
+        expect(isDuplicateKeyError(11000)).toBe(false)
     })
 })
 
