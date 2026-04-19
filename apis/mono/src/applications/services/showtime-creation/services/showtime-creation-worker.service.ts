@@ -35,7 +35,7 @@ export class ShowtimeCreationWorkerService
 
         const jobData = { createDto, sagaId } as ShowtimeCreationJobData
 
-        this.events.emitStatusChanged({ sagaId, status: ShowtimeCreationStatus.Waiting })
+        await this.events.emitStatusChanged({ sagaId, status: ShowtimeCreationStatus.Waiting })
 
         await this.queue.add('showtime-creation.create', jobData)
 
@@ -80,7 +80,7 @@ export class ShowtimeCreationWorkerService
             // so no outer catch is needed here.
             await this.compensate(job.data.sagaId)
 
-            this.events.emitStatusChanged({
+            await this.events.emitStatusChanged({
                 message,
                 sagaId: job.data.sagaId,
                 status: ShowtimeCreationStatus.Error
@@ -106,20 +106,20 @@ export class ShowtimeCreationWorkerService
     }
 
     private async processJobData({ createDto, sagaId }: ShowtimeCreationJobData) {
-        this.events.emitStatusChanged({ sagaId, status: ShowtimeCreationStatus.Processing })
+        await this.events.emitStatusChanged({ sagaId, status: ShowtimeCreationStatus.Processing })
 
         const { conflictingShowtimes, isValid } = await this.validatorService.validate(createDto)
 
         if (isValid) {
             const creationResult = await this.creatorService.create(createDto, sagaId)
 
-            this.events.emitStatusChanged({
+            await this.events.emitStatusChanged({
                 sagaId,
                 status: ShowtimeCreationStatus.Succeeded,
                 ...creationResult
             })
         } else {
-            this.events.emitStatusChanged({
+            await this.events.emitStatusChanged({
                 conflictingShowtimes,
                 sagaId,
                 status: ShowtimeCreationStatus.Failed

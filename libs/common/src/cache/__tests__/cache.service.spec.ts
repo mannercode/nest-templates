@@ -156,12 +156,12 @@ describe('CacheService', () => {
 
         // TTL 이 0 이하이면 예외를 던진다
         it('throws when TTL is zero or negative', async () => {
-            await expect(
-                fix.cacheService.withLock('job', 0, async () => null)
-            ).rejects.toThrow('Lock TTL must be a positive integer (ms)')
-            await expect(
-                fix.cacheService.withLock('job', -1, async () => null)
-            ).rejects.toThrow('Lock TTL must be a positive integer (ms)')
+            await expect(fix.cacheService.withLock('job', 0, async () => null)).rejects.toThrow(
+                'Lock TTL must be a positive integer (ms)'
+            )
+            await expect(fix.cacheService.withLock('job', -1, async () => null)).rejects.toThrow(
+                'Lock TTL must be a positive integer (ms)'
+            )
         })
 
         // fn 이 예외를 던져도 락을 해제한다

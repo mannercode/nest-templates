@@ -1,7 +1,6 @@
 import { PaginationDto } from '@mannercode/common'
 import {
     MessageEvent,
-    OnModuleDestroy,
     Body,
     Controller,
     Get,
@@ -11,32 +10,23 @@ import {
     Query,
     Sse
 } from '@nestjs/common'
-import { OnEvent } from '@nestjs/event-emitter'
 import {
     BulkCreateShowtimesDto,
-    ShowtimeCreationService,
-    ShowtimeCreationEvent
+    ShowtimeCreationEvents,
+    ShowtimeCreationService
 } from 'applications'
-import { Observable, Subject } from 'rxjs'
+import { map, Observable } from 'rxjs'
 
 @Controller('showtime-creation')
-export class ShowtimeCreationHttpController implements OnModuleDestroy {
-    private eventStream = new Subject<MessageEvent>()
-
-    constructor(private readonly showtimeCreationService: ShowtimeCreationService) {}
+export class ShowtimeCreationHttpController {
+    constructor(
+        private readonly showtimeCreationService: ShowtimeCreationService,
+        private readonly events: ShowtimeCreationEvents
+    ) {}
 
     @Sse('event-stream')
     getEventStream(): Observable<MessageEvent> {
-        return this.eventStream.asObservable()
-    }
-
-    @OnEvent('showtime-creation.statusChanged')
-    handleEvent(data: ShowtimeCreationEvent) {
-        this.eventStream.next({ data })
-    }
-
-    onModuleDestroy() {
-        this.eventStream.complete()
+        return this.events.observeStatusChanged().pipe(map((data) => ({ data })))
     }
 
     @HttpCode(HttpStatus.ACCEPTED)

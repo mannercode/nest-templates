@@ -1,5 +1,6 @@
 export * from './dtos'
 export * from './errors'
 export * from './services'
+export * from './showtime-creation.events'
 export * from './showtime-creation.module'
 export * from './showtime-creation.service'
