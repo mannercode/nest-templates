@@ -177,4 +177,52 @@ describe('CacheService', () => {
             expect(next).toEqual({ ran: true, result: 'ok' })
         })
     })
+
+    describe('withLockBlocking', () => {
+        // 경쟁이 없을 때 즉시 실행된다
+        it('runs immediately when uncontended', async () => {
+            const result = await fix.cacheService.withLockBlocking('job', 5_000, async () => 42)
+            expect(result).toBe(42)
+        })
+
+        // 동시 호출은 직렬화되어 모두 실행된다
+        it('serializes concurrent callers so every fn runs once', async () => {
+            let running = 0
+            let maxConcurrent = 0
+            const runnerCount = 10
+
+            const runners = Array.from({ length: runnerCount }, (_, i) =>
+                fix.cacheService.withLockBlocking(
+                    'job',
+                    5_000,
+                    async () => {
+                        running += 1
+                        maxConcurrent = Math.max(maxConcurrent, running)
+                        await sleep(20)
+                        running -= 1
+                        return i
+                    },
+                    { pollMs: 10 }
+                )
+            )
+
+            const results = await Promise.all(runners)
+            expect(results).toHaveLength(runnerCount)
+            expect(new Set(results).size).toBe(runnerCount)
+            expect(maxConcurrent).toBe(1)
+        }, 30_000)
+
+        // 대기 시간 안에 락을 못 잡으면 예외를 던진다
+        it('throws when the lock cannot be acquired before the wait deadline', async () => {
+            // 다른 보유자가 오래 잡고 있는 상황을 흉내
+            await fix.cacheService.set('lock:job', 'other', 10_000)
+
+            await expect(
+                fix.cacheService.withLockBlocking('job', 5_000, async () => 'unused', {
+                    pollMs: 10,
+                    waitMs: 50
+                })
+            ).rejects.toThrow(/could not acquire 'job'/)
+        })
+    })
 })

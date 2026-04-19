@@ -1,4 +1,10 @@
-import { getByPath, JsonUtil, newObjectIdString } from '@mannercode/common'
+import {
+    CacheService,
+    getByPath,
+    InjectCache,
+    JsonUtil,
+    newObjectIdString
+} from '@mannercode/common'
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq'
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { Job, Queue } from 'bullmq'
@@ -8,6 +14,10 @@ import { ShowtimeCreationEvents } from '../showtime-creation.events'
 import { ShowtimeBulkCreatorService } from './showtime-bulk-creator.service'
 import { ShowtimeBulkValidatorService } from './showtime-bulk-validator.service'
 import { ShowtimeCreationJobData, ShowtimeCreationStatus } from './types'
+
+const VALIDATE_CREATE_LOCK_KEY = 'validate-and-create'
+const VALIDATE_CREATE_LOCK_TTL_MS = 5 * 60 * 1000
+const VALIDATE_CREATE_LOCK_WAIT_MS = 10 * 60 * 1000
 
 @Injectable()
 @Processor('showtime-creation')
@@ -23,6 +33,7 @@ export class ShowtimeCreationWorkerService
         private readonly events: ShowtimeCreationEvents,
         private readonly showtimesService: ShowtimesService,
         private readonly ticketsService: TicketsService,
+        @InjectCache('showtime-creation') private readonly cache: CacheService,
         @InjectQueue('showtime-creation') private readonly queue: Queue
     ) {
         super()
@@ -108,22 +119,36 @@ export class ShowtimeCreationWorkerService
     private async processJobData({ createDto, sagaId }: ShowtimeCreationJobData) {
         await this.events.emitStatusChanged({ sagaId, status: ShowtimeCreationStatus.Processing })
 
-        const { conflictingShowtimes, isValid } = await this.validatorService.validate(createDto)
+        // Validate-then-insert is a read-modify-write on the showtimes
+        // collection. With one BullMQ worker per replica, two overlapping
+        // sagas can both pass validation before either commits. A cross-
+        // replica lock serializes the (validate, create) pair so exactly
+        // one saga sees a conflicting showtime whenever another has
+        // already inserted.
+        await this.cache.withLockBlocking(
+            VALIDATE_CREATE_LOCK_KEY,
+            VALIDATE_CREATE_LOCK_TTL_MS,
+            async () => {
+                const { conflictingShowtimes, isValid } =
+                    await this.validatorService.validate(createDto)
 
-        if (isValid) {
-            const creationResult = await this.creatorService.create(createDto, sagaId)
+                if (isValid) {
+                    const creationResult = await this.creatorService.create(createDto, sagaId)
 
-            await this.events.emitStatusChanged({
-                sagaId,
-                status: ShowtimeCreationStatus.Succeeded,
-                ...creationResult
-            })
-        } else {
-            await this.events.emitStatusChanged({
-                conflictingShowtimes,
-                sagaId,
-                status: ShowtimeCreationStatus.Failed
-            })
-        }
+                    await this.events.emitStatusChanged({
+                        sagaId,
+                        status: ShowtimeCreationStatus.Succeeded,
+                        ...creationResult
+                    })
+                } else {
+                    await this.events.emitStatusChanged({
+                        conflictingShowtimes,
+                        sagaId,
+                        status: ShowtimeCreationStatus.Failed
+                    })
+                }
+            },
+            { waitMs: VALIDATE_CREATE_LOCK_WAIT_MS }
+        )
     }
 }

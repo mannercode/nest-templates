@@ -4,6 +4,14 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+TEST_NAME="${1:?Usage: $0 <test-name>}"
+TEST_SCRIPT="${SCRIPT_DIR}/stress/${TEST_NAME}.js"
+
+if [ ! -f "$TEST_SCRIPT" ]; then
+    echo "Error: no stress script at ${TEST_SCRIPT}"
+    exit 1
+fi
+
 ENV_FILE="${ENV_FILE:-../.env}"
 LISTEN_PORT="${LISTEN_PORT:-3000}"
 SERVER_URL="http://localhost:${LISTEN_PORT}"
@@ -27,37 +35,21 @@ docker wait api-setup && docker rm api-setup
 echo ""
 docker compose --env-file "$ENV_FILE" ps
 
-FAILED=0
-
-run_test() {
-    local name=$1
-    local script=$2
-
-    echo ""
-    echo "=== ${name} ==="
-    if SERVER_URL="${SERVER_URL}" node "${SCRIPT_DIR}/stress/${script}"; then
-        echo "[PASS] ${name}"
-    else
-        echo "[FAIL] ${name}"
-        FAILED=1
-    fi
-}
-
-run_test "cross-replica SSE fan-out" "cross-replica-sse.js"
-run_test "cross-replica customer email race" "customers-race.js"
-
-if [[ "${FAILED}" -ne 0 ]]; then
-    echo ""
-    echo "=== container diagnostics ==="
-    docker compose --env-file "$ENV_FILE" ps -a || true
-    for cid in $(docker compose --env-file "$ENV_FILE" ps -aq 2>/dev/null); do
-        cname=$(docker inspect --format '{{.Name}} ({{.State.Status}})' "$cid" 2>/dev/null || echo "$cid")
-        echo "--- logs ${cname} (last 200) ---"
-        docker logs --tail 200 "$cid" 2>&1 || true
-        echo ""
-    done
-    exit 1
+echo ""
+echo "=== ${TEST_NAME} ==="
+if SERVER_URL="${SERVER_URL}" node "${TEST_SCRIPT}"; then
+    echo "[PASS] ${TEST_NAME}"
+    exit 0
 fi
 
+echo "[FAIL] ${TEST_NAME}"
 echo ""
-echo "All distributed stress tests passed."
+echo "=== container diagnostics ==="
+docker compose --env-file "$ENV_FILE" ps -a || true
+for cid in $(docker compose --env-file "$ENV_FILE" ps -aq 2>/dev/null); do
+    cname=$(docker inspect --format '{{.Name}} ({{.State.Status}})' "$cid" 2>/dev/null || echo "$cid")
+    echo "--- logs ${cname} (last 200) ---"
+    docker logs --tail 200 "$cid" 2>&1 || true
+    echo ""
+done
+exit 1

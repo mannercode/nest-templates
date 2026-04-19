@@ -96,6 +96,34 @@ export class CacheService {
         }
     }
 
+    /**
+     * Blocking variant of `withLock`: polls until the lock is free, then
+     * acquires it and runs `fn` exactly once. Throws if the lock cannot be
+     * acquired within `waitMs`.
+     *
+     * Use when callers must serialize with peers (not skip on contention).
+     * `pollMs` should be short enough that a released lock is picked up
+     * quickly, but not so short that it hammers Redis.
+     */
+    async withLockBlocking<T>(
+        key: string,
+        ttlMs: number,
+        fn: () => Promise<T> | T,
+        { pollMs = 50, waitMs = 2 * 60 * 1000 }: { pollMs?: number; waitMs?: number } = {}
+    ): Promise<T> {
+        const deadline = Date.now() + waitMs
+        while (true) {
+            const attempt = await this.withLock(key, ttlMs, fn)
+            if (attempt.ran) return attempt.result
+            if (Date.now() >= deadline) {
+                throw new Error(
+                    `withLockBlocking: could not acquire '${key}' within ${waitMs}ms`
+                )
+            }
+            await new Promise((r) => setTimeout(r, pollMs))
+        }
+    }
+
     private getKey(key: string) {
         return `${this.prefix}:${key}`
     }

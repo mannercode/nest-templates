@@ -88,8 +88,13 @@ export class ShowtimeBulkValidatorService {
         const timeslotsByTheater = new Map<string, TimeslotMap>()
 
         for (const theaterId of theaterIds) {
+            // Fetch any showtime whose time range overlaps [startDate, endDate] —
+            // not just those that *start* inside the window. An existing showtime
+            // can start before the window yet still conflict (e.g. new 10:00-12:00
+            // overlaps existing 09:00-11:00).
             const fetchedShowtimes = await this.showtimesService.search({
-                startTimeRange: { end: endDate, start: startDate },
+                endTimeRange: { start: startDate },
+                startTimeRange: { end: endDate },
                 theaterIds: [theaterId]
             })
 

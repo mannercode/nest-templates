@@ -1,7 +1,7 @@
-import { PubSubModule } from '@mannercode/common'
+import { CacheModule, PubSubModule } from '@mannercode/common'
 import { BullModule } from '@nestjs/bullmq'
 import { Module } from '@nestjs/common'
-import { RedisConfigModule } from 'config'
+import { getProjectId, RedisConfigModule } from 'config'
 import { MoviesModule, ShowtimesModule, TheatersModule, TicketsModule } from 'cores'
 import {
     ShowtimeBulkCreatorService,
@@ -16,6 +16,11 @@ import { ShowtimeCreationService } from './showtime-creation.service'
     imports: [
         BullModule.registerQueue({ configKey: 'queue', name: 'showtime-creation' }),
         PubSubModule.register({ redisName: RedisConfigModule.connectionName }),
+        CacheModule.register({
+            name: 'showtime-creation',
+            prefix: `cache:${getProjectId()}`,
+            redisName: RedisConfigModule.connectionName
+        }),
         MoviesModule,
         TheatersModule,
         ShowtimesModule,
