@@ -37,16 +37,18 @@ infra/local/              # 로컬 인프라 Docker Compose
 
 ### Mono
 
-| Script              | Description                                 |
-| ------------------- | ------------------------------------------- |
-| `npm run build`     | 프로덕션 빌드                               |
-| `npm run start`     | 빌드된 앱 실행                              |
-| `npm run dev`       | Watch 모드로 개발 실행                      |
-| `npm test`          | 단위 테스트 실행 (coverage 포함)            |
-| `npm run test:e2e`  | E2E 테스트 실행 (인프라 + 앱 자동 재시작)   |
-| `npm run lint`      | TypeScript 타입 체크, ESLint, Prettier 검사 |
-| `npm run format`    | ESLint 자동 수정 및 Prettier 포맷팅         |
-| `npm run api:reset` | 앱 서비스 초기화 (down + up + wait)         |
+| Script                           | Description                                                       |
+| -------------------------------- | ----------------------------------------------------------------- |
+| `npm run build`                  | 프로덕션 빌드                                                     |
+| `npm run start`                  | 빌드된 앱 실행                                                    |
+| `npm run dev`                    | Watch 모드로 개발 실행                                            |
+| `npm test`                       | 단위 테스트 실행 (coverage 포함)                                  |
+| `npm run test:e2e`               | E2E 테스트 실행 (인프라 + 앱 자동 재시작)                         |
+| `npm run test:stress`            | E2E spec 반복 부하 테스트 (단일 인스턴스)                         |
+| `npm run test:stress-distributed -- <scenario>` | 4-replica cross-replica 시나리오 테스트 — [testing.md#9-분산-스트레스-테스트](testing.md#9-분산-스트레스-테스트) |
+| `npm run lint`                   | TypeScript 타입 체크, ESLint, Prettier 검사                       |
+| `npm run format`                 | ESLint 자동 수정 및 Prettier 포맷팅                               |
+| `npm run api:reset`              | 앱 서비스 초기화 (down + up + wait)                               |
 
 ### MSA
 
@@ -238,7 +240,7 @@ Testcontainers가 처음 실행될 때 Docker 이미지를 pull한다. 네트워
 
 ### ESLint 계층 규칙 위반 경고
 
-`Layering rule: ...` 메시지가 나타나면 import 경로가 잘못된 계층을 참조하고 있는 것이다. [아키텍처](architecture.md#6-eslint-계층-의존성-검증)의 계층 의존성 규칙 표를 참고하여 import를 수정하거나, 해당 로직을 올바른 계층으로 이동한다.
+`Layering rule: ...` 메시지가 나타나면 import 경로가 잘못된 계층을 참조하고 있는 것이다. [아키텍처](architecture.md#7-eslint-계층-의존성-검증)의 계층 의존성 규칙 표를 참고하여 import를 수정하거나, 해당 로직을 올바른 계층으로 이동한다.
 
 ### MongoDB 트랜잭션 오류 (로컬)
 

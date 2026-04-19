@@ -6,17 +6,21 @@
 
 ## 1. 채택 (이미 적용)
 
-| 분야          | 기술                           |
-| ------------- | ------------------------------ |
-| 프레임워크    | NestJS                         |
-| 메시징        | NATS                           |
-| 워크플로우    | Temporal (msa) / BullMQ (mono) |
-| DB            | MongoDB (replica set)          |
-| 캐시/큐       | Redis (cluster)                |
-| 객체 스토리지 | S3 / MinIO                     |
-| 컨테이너      | Docker, Docker Compose         |
-| CI            | GitHub Actions                 |
-| 테스트        | Jest, bash + curl (e2e spec)   |
+| 분야                   | 기술                                                     |
+| ---------------------- | -------------------------------------------------------- |
+| 프레임워크             | NestJS                                                   |
+| 메시징 (msa)           | NATS                                                     |
+| 메시징 (mono)          | Redis Pub/Sub (`PubSubService`, cross-replica SSE)       |
+| 분산 락 (mono)         | Redis SET NX + Lua (`cache.withLock` / `withLockBlocking`) |
+| 워크플로우             | Temporal (msa) / BullMQ (mono)                           |
+| DB                     | MongoDB (replica set)                                    |
+| 캐시/큐                | Redis (cluster)                                          |
+| 객체 스토리지          | S3 / MinIO                                               |
+| 컨테이너               | Docker, Docker Compose                                   |
+| CI                     | GitHub Actions                                           |
+| 테스트 (단위/통합)     | Jest + Testcontainers                                    |
+| 테스트 (e2e)           | bash + curl spec                                         |
+| 테스트 (분산 stress)   | Node 블랙박스 + 4-replica docker compose                 |
 
 ---
 

@@ -224,3 +224,35 @@ coverageThreshold: {
 | `testTimeout`                | 60초                                 | Testcontainers 기동 시간 고려                    |
 | `coverageThreshold`          | 100% (전체)                          | branches, functions, lines, statements 모두 100% |
 | `coveragePathIgnorePatterns` | `__tests__`, `index.ts`, `/testing/` | 테스트 코드, barrel, testing 패키지 제외         |
+
+---
+
+## 9. 분산 스트레스 테스트
+
+단일 프로세스 테스트로는 검증할 수 없는 **cross-replica race** 를 4-replica docker compose 스택에서 블랙박스로 검증한다. 소스는 [apis/mono/tests/stress/](../apis/mono/tests/stress/) 에 있고, 각 시나리오는 별도 Node 스크립트 (앱 코드 import 없음, HTTP 만 사용) 이다.
+
+### 9.1. 시나리오
+
+| 파일 | 검증 대상 |
+|---|---|
+| `sse.js` | SSE 이벤트가 Redis pub/sub 을 통해 모든 replica 의 클라이언트에 전달되는지 |
+| `customer-race.js` | 동일 이메일 동시 POST /customers — Mongo unique index 로 정확히 1 × 201 + N-1 × 409 |
+| `ticket-holding-race.js` | 동시 hold-tickets — Redis SET NX 로 정확히 1 × 200 + N-1 × 409 |
+| `showtime-overlap-race.js` | 겹치는 시간대 saga 2개 동시 요청 — 분산 락으로 정확히 1 succeeded + 1 failed |
+| `purchase-double-spend.js` | 동일 티켓 세트 동시 구매 — 분산 락 + 상태 검증으로 정확히 1 × 201 + N-1 × 409 (payment 도 1개) |
+
+모든 시나리오는 각 요청마다 별도 `http.Agent({keepAlive:false})` 를 사용해 nginx `least_conn` 이 실제로 replica 를 분산하도록 유도하고, 응답의 `x-replica-id` 헤더로 분산이 일어났는지 함께 검증한다.
+
+### 9.2. 실행
+
+```bash
+npm run test:stress-distributed -w apis/mono -- <scenario>
+# e.g.
+npm run test:stress-distributed -w apis/mono -- purchase-double-spend
+```
+
+래퍼 [run.sh](../apis/mono/tests/stress/run.sh) 가 compose 스택을 빌드·기동하고 해당 스크립트를 실행한 뒤 정리한다. 실패 시 컨테이너 로그 300줄을 덤프한다.
+
+### 9.3. CI
+
+`.github/workflows/test-stability.yaml` 에 각 시나리오를 **독립 job** 으로 등록한다 (`stress-sse-mono`, `stress-customer-race-mono`, `stress-ticket-holding-mono`, `stress-showtime-overlap-mono`, `stress-purchase-mono`). 각 60회 반복으로 flakiness 를 누적 관측한다.

@@ -31,8 +31,9 @@ common        (독립)
 | 모듈           | 주요 export                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------- |
 | **mongoose**   | `CrudRepository`, `CrudSchema`, `AppendOnlyRepository`, `AppendOnlySchema`, 페이지네이션 지원 |
-| **redis**      | `RedisModule`, 연결 관리                                                                      |
-| **cache**      | `CacheService`, `CacheModule`, 네임스페이스 키, TTL, Lua                                      |
+| **redis**      | `RedisModule`, 연결 관리 (single/cluster)                                                     |
+| **cache**      | `CacheService`, `CacheModule`, 네임스페이스 키, TTL, Lua, `withLock` / `withLockBlocking` 분산 락 |
+| **pubsub**     | `PubSubService`, `PubSubModule`, Redis pub/sub 기반 cross-replica 메시지 팬아웃               |
 | **auth**       | JWT/Local/Optional Guard, `JwtAuthService`, `@Public()` — [상세](auth.md)                     |
 | **s3**         | `S3ObjectService`, 업로드/다운로드, presigned URL                                             |
 | **logger**     | `AppLoggerService`, Winston, `HttpExceptionLoggerFilter`, `HttpSuccessLoggerInterceptor`      |
@@ -179,7 +180,44 @@ export class ShowtimesHttpController {
 
 ---
 
-## 5. 서비스 호출 흐름
+## 5. 분산 환경 협력
+
+mono 는 단일 애플리케이션이지만 프로덕션/테스트에서 **4 replica** 로 수평 확장된다. 같은 레플리카가 독점할 수 없는 상태는 Redis 를 매개로 조정한다.
+
+### 5.1. 분산 락 — `cache.withLock` / `cache.withLockBlocking`
+
+- `withLock(key, ttl, fn)` — 경합 시 `{ran: false}` 를 즉시 반환. **중복 실행 방지용** (예: 여러 replica 가 동시에 발화하는 cron 중 하나만 실행).
+- `withLockBlocking(key, ttl, fn, {pollMs, waitMs})` — 폴링하며 락이 풀릴 때까지 대기. **동시 요청을 직렬화할 때** 사용.
+
+현재 사용 지점:
+
+| 위치 | 유형 | 목적 |
+|---|---|---|
+| [AssetsService.cleanupExpiredUploads](../apis/mono/src/infrastructures/services/assets/assets.service.ts) | `withLock` | 4 replica 의 cron 중 한 번만 삭제 작업 실행 |
+| [ShowtimeCreationWorkerService](../apis/mono/src/applications/services/showtime-creation/services/showtime-creation-worker.service.ts) | `withLockBlocking` | 겹치는 시간대 saga 의 validate-then-insert race 차단 |
+| [PurchaseService.processPurchase](../apis/mono/src/applications/services/purchase/purchase.service.ts) | `withLockBlocking` (ticketIds 기반 키) | 동일 티켓 세트 중복 구매(double-spend) 차단 |
+
+**선택 기준**: `withLock` 은 "피크에 한 번만" 의미. `withLockBlocking` 은 "모든 요청을 순서대로" 의미. race 를 취소하려면 `withLock`, 직렬화가 필요하면 `withLockBlocking`.
+
+### 5.2. Cross-replica 메시지 — `PubSubService`
+
+프로세스 로컬 `EventEmitter2` 는 요청이 도착한 replica 안에서만 이벤트가 전달된다. 다른 replica 의 SSE 클라이언트로 이벤트를 전달하려면 Redis pub/sub 이 필요하다.
+
+`PubSubService` 는 publisher 연결을 `duplicate()` 해서 subscriber 전용 연결을 만들고 (ioredis 제약), 채널별 핸들러 집합을 관리한다. `subscribe` / `unsubscribe` 는 Redis 의 SUBSCRIBE/UNSUBSCRIBE ack 를 기다린 뒤 resolve 한다.
+
+현재 사용 지점:
+
+| 위치 | 목적 |
+|---|---|
+| [ShowtimeCreationEvents](../apis/mono/src/applications/services/showtime-creation/showtime-creation.events.ts) | saga 상태 변화를 Redis 채널로 publish → 모든 replica 의 subscribe 핸들러가 로컬 RxJS Subject 로 포워드 → SSE 컨트롤러가 스트림 |
+
+### 5.3. Replica 식별 — `x-replica-id` 응답 헤더
+
+[configure-app.ts](../apis/mono/src/config/configure-app.ts) 의 미들웨어가 모든 HTTP 응답에 `x-replica-id: <os.hostname()>` 를 설정한다. 컨테이너 hostname 이 replica 고유 ID 이므로, stress 테스트가 여러 요청이 실제로 서로 다른 replica 에 분산됐는지 검증할 때 사용한다.
+
+---
+
+## 6. 서비스 호출 흐름
 
 ### Mono
 
@@ -231,7 +269,7 @@ apps
 
 ---
 
-## 6. ESLint 계층 의존성 검증
+## 7. ESLint 계층 의존성 검증
 
 `eslint.config.js`의 `no-restricted-imports` 규칙으로 SoLA 계층 위반을 빌드 타임에 감지한다.
 

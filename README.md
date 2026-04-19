@@ -119,7 +119,17 @@ cd apis/msa
 npm run test:e2e
 ```
 
-### 5. Mono 앱 실행
+### 5. 분산 스트레스 테스트 (mono)
+
+4-replica docker compose 스택을 띄워 cross-replica race 를 검증한다 — SSE 팬아웃, 동시 가입/홀드, saga 중첩, 중복 구매 등. 자세한 내용은 [testing.md#9-분산-스트레스-테스트](docs/testing.md#9-분산-스트레스-테스트).
+
+```bash
+cd apis/mono
+npm run test:stress-distributed -- <scenario>
+# scenario: sse | customer-race | ticket-holding-race | showtime-overlap-race | purchase-double-spend
+```
+
+### 6. Mono 앱 실행
 
 ```bash
 cd apis/mono
