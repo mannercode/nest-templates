@@ -12,7 +12,8 @@
         "format": "eslint src/ --fix && prettier --write src/",
         "lint": "tsc --noEmit && eslint src/ --max-warnings=0 && prettier --check src/",
         "test:e2e": "bash deploy/test-e2e.sh",
-        "test:stress": "bash deploy/test-stress.sh"
+        "test:stress": "bash deploy/test-stress.sh",
+        "test:stress-distributed": "bash deploy/test-stress-distributed.sh"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "3.1032.0",
