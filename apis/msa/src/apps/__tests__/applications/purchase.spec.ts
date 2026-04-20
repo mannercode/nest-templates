@@ -144,20 +144,31 @@ describe('PurchaseService', () => {
                 // 결제를 취소하고 구매 기록을 삭제한다
                 it('cancels the payment and deletes the purchase record', async () => {
                     const { TicketPurchaseService } = await import('applications')
+                    const { PurchaseRecordsClient } = await import('cores')
+                    const { PaymentsClient } = await import('infrastructures')
                     const ticketPurchaseService = fix.module.get(TicketPurchaseService)
+                    const purchaseRecordsClient = fix.module.get(PurchaseRecordsClient)
+                    const paymentsClient = fix.module.get(PaymentsClient)
 
                     jest.spyOn(ticketPurchaseService, 'completePurchase').mockImplementationOnce(
                         () => {
                             throw new Error('complete failed')
                         }
                     )
-                    jest.spyOn(ticketPurchaseService, 'rollbackPurchase').mockResolvedValueOnce(
-                        undefined
+                    const rollbackPurchaseSpy = jest.spyOn(
+                        ticketPurchaseService,
+                        'rollbackPurchase'
                     )
+                    const deletePurchaseRecordSpy = jest.spyOn(purchaseRecordsClient, 'delete')
+                    const cancelPaymentSpy = jest.spyOn(paymentsClient, 'cancel')
 
                     const createDto = buildCreatePurchaseDto(heldTickets)
 
                     await fix.httpClient.post('/purchases').body(createDto).internalServerError()
+
+                    expect(rollbackPurchaseSpy).toHaveBeenCalledTimes(1)
+                    expect(deletePurchaseRecordSpy).toHaveBeenCalledTimes(1)
+                    expect(cancelPaymentSpy).toHaveBeenCalledTimes(1)
                 })
             })
 
@@ -165,16 +176,21 @@ describe('PurchaseService', () => {
             describe('when purchase record creation fails', () => {
                 // 결제를 취소한다
                 it('cancels the payment', async () => {
-                    const { PurchaseRecordsService } = await import('cores')
-                    const purchaseRecordsService = fix.module.get(PurchaseRecordsService)
+                    const { PurchaseRecordsClient } = await import('cores')
+                    const { PaymentsClient } = await import('infrastructures')
+                    const purchaseRecordsClient = fix.module.get(PurchaseRecordsClient)
+                    const paymentsClient = fix.module.get(PaymentsClient)
 
-                    jest.spyOn(purchaseRecordsService, 'create').mockImplementationOnce(() => {
+                    jest.spyOn(purchaseRecordsClient, 'create').mockImplementationOnce(() => {
                         throw new Error('record creation failed')
                     })
+                    const cancelPaymentSpy = jest.spyOn(paymentsClient, 'cancel')
 
                     const createDto = buildCreatePurchaseDto(heldTickets)
 
                     await fix.httpClient.post('/purchases').body(createDto).internalServerError()
+
+                    expect(cancelPaymentSpy).toHaveBeenCalledTimes(1)
                 })
             })
         })
