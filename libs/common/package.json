@@ -4,9 +4,11 @@
     "types": "_output/dist/index.d.ts",
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
-        "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --no-cache --coverage",
+        "clean": "jest --clearCache",
+        "test": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
         "lint": "tsc --noEmit && eslint src/ --max-warnings=0 && prettier --check src/",
-        "format": "eslint src/ --fix && prettier --write src/"
+        "format": "eslint src/ --fix && prettier --write src/",
+        "atoz": "npm run build && npm run lint && npm test"
     },
     "dependencies": {
         "mongoose-lean-virtuals": "2.1.0",

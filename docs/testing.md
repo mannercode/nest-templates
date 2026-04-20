@@ -227,9 +227,9 @@ coverageThreshold: {
 
 ---
 
-## 9. 분산 스트레스 테스트
+## 9. 분산 테스트
 
-단일 프로세스 테스트로는 검증할 수 없는 **cross-replica race** 를 4-replica docker compose 스택에서 블랙박스로 검증한다. 소스는 [apis/mono/tests/stress/](../apis/mono/tests/stress/) 에 있고, 각 시나리오는 별도 Node 스크립트 (앱 코드 import 없음, HTTP 만 사용) 이다.
+단일 프로세스 테스트로는 검증할 수 없는 **cross-replica race** 를 4-replica docker compose 스택에서 블랙박스로 검증한다. 소스는 [apis/mono/tests/](../apis/mono/tests/) 에 있고, 각 시나리오는 별도 Node 스크립트 (앱 코드 import 없음, HTTP 만 사용) 이다. 무거운 인프라 의존 테스트라 package.json 에는 노출하지 않고 shell 로 직접 호출한다.
 
 ### 9.1. 시나리오
 
@@ -246,13 +246,13 @@ coverageThreshold: {
 ### 9.2. 실행
 
 ```bash
-npm run test:stress -w apis/mono -- <scenario>
+bash apis/mono/tests/runner.sh <scenario>
 # e.g.
-npm run test:stress -w apis/mono -- purchase-double-spend
+bash apis/mono/tests/runner.sh purchase-double-spend
 ```
 
-래퍼 [run.sh](../apis/mono/tests/stress/run.sh) 가 compose 스택을 빌드·기동하고 해당 스크립트를 실행한 뒤 정리한다. 실패 시 컨테이너 로그 300줄을 덤프한다.
+디스패처 [run.sh](../apis/mono/tests/runner.sh) 가 compose 스택을 빌드·기동하고 해당 시나리오 스크립트를 실행한 뒤 정리한다. 실패 시 컨테이너 로그 200줄을 덤프한다.
 
 ### 9.3. CI
 
-`.github/workflows/test-stability.yaml` 에 각 시나리오를 **독립 job** 으로 등록한다 (`stress-sse-mono`, `stress-customer-race-mono`, `stress-ticket-holding-mono`, `stress-showtime-overlap-mono`, `stress-purchase-mono`). 각 60회 반복으로 flakiness 를 누적 관측한다.
+`.github/workflows/test-stability.yaml` 에 각 시나리오를 **독립 job** 으로 등록한다 (`sse-mono`, `customer-race-mono`, `ticket-holding-race-mono`, `showtime-overlap-race-mono`, `purchase-double-spend-mono`). 각 60회 반복으로 flakiness 를 누적 관측한다.

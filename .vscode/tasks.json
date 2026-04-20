@@ -38,16 +38,16 @@
             "type": "pickString",
             "description": "test",
             "options": [
-                "npm run test:unit",
-                "npm run test:smoke",
-                "npm run test:load -w apis/mono",
-                "npm run test:stress -w apis/mono -- sse",
-                "npm run test:unit -w libs",
-                "npm run test:unit -w apis/mono",
-                "npm run test:unit -w apis/msa",
-                "npm run test:smoke -w apis/mono",
-                "npm run test:smoke -w apis/msa",
-                "npm run atoz"
+                "npm test",
+                "npm test -w libs",
+                "npm test -w apis/mono",
+                "npm test -w apis/msa",
+                "bash apis/mono/deploy/test.sh",
+                "bash apis/msa/deploy/test.sh",
+                "bash apis/mono/tests/runner.sh sse",
+                "npm run atoz",
+                "npm run atoz -w apis/mono",
+                "npm run atoz -w apis/msa"
             ]
         }
     ]

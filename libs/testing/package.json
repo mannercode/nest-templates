@@ -4,9 +4,11 @@
     "types": "_output/dist/index.d.ts",
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
+        "clean": "jest --clearCache",
         "lint": "tsc --noEmit && eslint src/ --max-warnings=0 && prettier --check src/",
         "format": "eslint src/ --fix && prettier --write src/",
-        "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --no-cache"
+        "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+        "atoz": "npm run build && npm run lint && npm test"
     },
     "dependencies": {
         "superagent": "10.3.0"

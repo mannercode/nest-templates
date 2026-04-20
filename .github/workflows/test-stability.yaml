@@ -21,7 +21,7 @@ jobs:
                       set -Eeuo pipefail
                       docker rm -f $(docker ps -aq) 2>/dev/null || true
                       npm run build
-                      bash .github/scripts/repeat.sh 100 npm run test:unit -w libs --if-present -- --coverageThreshold='{}'
+                      bash .github/scripts/repeat.sh 100 npm test -w libs --if-present -- --coverageThreshold='{}'
     unit-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
@@ -35,7 +35,7 @@ jobs:
                   runCmd: |
                       set -Eeuo pipefail
                       npm run build
-                      bash .github/scripts/repeat.sh 100 npm run test:unit -w apis/mono -- --coverageThreshold='{}'
+                      bash .github/scripts/repeat.sh 100 npm test -w apis/mono -- --coverageThreshold='{}'
     unit-msa:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
@@ -49,7 +49,7 @@ jobs:
                   runCmd: |
                       set -Eeuo pipefail
                       npm run build
-                      bash .github/scripts/repeat.sh 100 npm run test:unit -w apis/msa -- --coverageThreshold='{}'
+                      bash .github/scripts/repeat.sh 100 npm test -w apis/msa -- --coverageThreshold='{}'
     bootup-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
@@ -78,7 +78,7 @@ jobs:
                       set -Eeuo pipefail
                       npm run build
                       bash .github/scripts/repeat.sh 70 bash .github/scripts/bootup-test.sh msa
-    load-mono:
+    sse-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
         steps:
@@ -90,8 +90,8 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 80 npm run test:load -w apis/mono
-    stress-sse-mono:
+                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh sse
+    customer-race-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
         steps:
@@ -103,8 +103,8 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 npm run test:stress -w apis/mono -- sse
-    stress-customer-race-mono:
+                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh customer-race
+    ticket-holding-race-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
         steps:
@@ -116,8 +116,8 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 npm run test:stress -w apis/mono -- customer-race
-    stress-ticket-holding-mono:
+                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh ticket-holding-race
+    showtime-overlap-race-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
         steps:
@@ -129,8 +129,8 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 npm run test:stress -w apis/mono -- ticket-holding-race
-    stress-showtime-overlap-mono:
+                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh showtime-overlap-race
+    purchase-double-spend-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
         steps:
@@ -142,17 +142,4 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 npm run test:stress -w apis/mono -- showtime-overlap-race
-    stress-purchase-mono:
-        runs-on: ubuntu-24.04-arm
-        timeout-minutes: 360
-        steps:
-            - uses: actions/checkout@v5
-            - name: Run in devcontainer
-              uses: devcontainers/ci@v0.3
-              with:
-                  configFile: .devcontainer/devcontainer.json
-                  push: never
-                  runCmd: |
-                      set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 npm run test:stress -w apis/mono -- purchase-double-spend
+                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh purchase-double-spend

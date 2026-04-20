@@ -11,7 +11,7 @@
 | Script              | Description                         |
 | ------------------- | ----------------------------------- |
 | `npm run build`     | libs 3개 패키지 빌드                |
-| `npm run test:unit` | Jest + Testcontainers로 단위 테스트 |
+| `npm test`          | Jest + Testcontainers로 단위 테스트 |
 | `npm run lint`      | ESLint 검사                         |
 | `npm run format`    | Prettier 포맷팅                     |
 

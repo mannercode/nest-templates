@@ -22,7 +22,4 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      npm run build
-                      npm run lint
-                      npm run test:unit
-                      npm run test:smoke
+                      npm run atoz

@@ -7,14 +7,11 @@
     ],
     "scripts": {
         "build": "npm run build --workspaces --if-present",
-        "clean": "npm run clean --workspaces --if-present && git clean -fdX ",
+        "clean": "npm run clean --workspaces --if-present && git clean -fdX",
         "lint": "npm run lint --workspaces --if-present",
         "format": "npm run format --workspaces --if-present",
-        "test:unit": "npm run test:unit --workspaces --if-present",
-        "test:smoke": "npm run test:smoke --workspaces --if-present",
-        "test:load": "npm run test:load --workspaces --if-present",
-        "test:stress": "npm run test:stress --workspaces --if-present",
-        "atoz": "npm run clean && npm install && npm run build && npm run lint && npm run test:unit && npm run test:smoke"
+        "test": "npm test --workspaces --if-present",
+        "atoz": "npm run clean && npm install && npm run atoz --workspaces --if-present"
     },
     "devDependencies": {
         "@aws-sdk/client-s3": "3.1032.0",

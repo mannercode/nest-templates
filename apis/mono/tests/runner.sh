@@ -2,14 +2,14 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-MONO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+MONO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_DIR="${MONO_DIR}/deploy"
 
 TEST_NAME="${1:?Usage: $0 <test-name>}"
 TEST_SCRIPT="${SCRIPT_DIR}/${TEST_NAME}.js"
 
 if [ ! -f "$TEST_SCRIPT" ]; then
-    echo "Error: no stress script at ${TEST_SCRIPT}"
+    echo "Error: no test script at ${TEST_SCRIPT}"
     exit 1
 fi
 

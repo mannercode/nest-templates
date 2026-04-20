@@ -5,7 +5,8 @@
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
         "lint": "tsc --noEmit && eslint src/ --max-warnings=0 && prettier --check src/",
-        "format": "eslint src/ --fix && prettier --write src/"
+        "format": "eslint src/ --fix && prettier --write src/",
+        "atoz": "npm run build && npm run lint"
     },
     "peerDependencies": {
         "@mannercode/testing": "*",

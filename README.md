@@ -55,26 +55,22 @@ npm run build
 libs와 apis 전체 단위 테스트를 실행한다.
 
 ```bash
-npm run test:unit
+npm test
 ```
 
 개별 앱만 실행하려면:
 
 ```bash
-cd apis/mono
-npm run test:unit
-
-cd apis/msa
-npm run test:unit
+npm test -w apis/mono
+npm test -w apis/msa
 ```
 
-### 4. Smoke 테스트
+### 4. Deploy 테스트
 
-Smoke 테스트는 Docker Compose로 앱을 빌드·실행한 뒤, `specs/` 의 curl 기반 셸 스크립트로 API 를 검증한다. 스펙은 실행 가능한 API 문서 역할도 겸한다.
+Deploy 테스트는 Docker Compose로 앱을 빌드·실행한 뒤, `specs/` 의 curl 기반 셸 스크립트로 API 가 응답하는지 검증한다. 스펙은 실행 가능한 API 문서 역할도 겸한다.
 
 ```bash
-cd apis/mono
-npm run test:smoke
+bash apis/mono/deploy/test.sh
 ```
 
 스펙은 `specs/` 디렉토리에 `.spec` 셸 스크립트로 작성한다.
@@ -113,17 +109,15 @@ TEST "Login customer" \
 MSA도 동일한 구조다.
 
 ```bash
-cd apis/msa
-npm run test:smoke
+bash apis/msa/deploy/test.sh
 ```
 
-### 5. 분산 스트레스 테스트 (mono)
+### 5. 분산 테스트 (mono)
 
-4-replica docker compose 스택을 띄워 cross-replica race 를 검증한다 — SSE 팬아웃, 동시 가입/홀드, saga 중첩, 중복 구매 등. 자세한 내용은 [testing.md#9-분산-스트레스-테스트](docs/testing.md#9-분산-스트레스-테스트).
+4-replica docker compose 스택을 띄워 cross-replica race 를 검증한다 — SSE 팬아웃, 동시 가입/홀드, saga 중첩, 중복 구매 등. package.json 에는 노출하지 않고 shell 로 직접 호출한다. 자세한 내용은 [testing.md#9-분산-테스트](docs/testing.md#9-분산-테스트).
 
 ```bash
-cd apis/mono
-npm run test:stress -- <scenario>
+bash apis/mono/tests/runner.sh <scenario>
 # scenario: sse | customer-race | ticket-holding-race | showtime-overlap-race | purchase-double-spend
 ```
 
@@ -247,7 +241,7 @@ nest-seed/
 npm install              # workspace 정리
 npm run build            # libs 빌드
 npm run lint             # 의존성 깨진 곳 확인
-npm run test:unit        # 테스트 통과 확인
+npm test                 # 테스트 통과 확인
 ```
 
 ---

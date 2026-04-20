@@ -4,15 +4,13 @@
     "private": true,
     "scripts": {
         "start": "node _output/dist/index.js",
-        "bundle": "nest build -b webpack --webpackPath ./webpack.config.js",
-        "clean": "docker compose -f deploy/compose.yml down -v -t 0",
+        "bundle": "nest build -b webpack",
+        "clean": "docker compose --env-file .env -f deploy/compose.yml down -v -t 0 && jest --clearCache",
         "dev": "nest start --watch",
-        "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --no-cache --coverage --config ../jest.config.js",
+        "test": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage --config ../jest.config.js",
         "format": "eslint src/ --fix && prettier --write src/",
         "lint": "tsc --noEmit && eslint src/ --max-warnings=0 && prettier --check src/",
-        "test:smoke": "bash deploy/smoke.sh",
-        "test:load": "bash tests/load/run.sh",
-        "test:stress": "bash tests/stress/run.sh"
+        "atoz": "npm run clean && npm run lint && npm test && bash deploy/test.sh"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "3.1032.0",
