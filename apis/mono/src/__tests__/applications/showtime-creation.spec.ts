@@ -246,5 +246,44 @@ describe('ShowtimeCreationService', () => {
                 })
             })
         })
+
+        // 기존 상영 시간이 새 범위보다 먼저 시작하지만 겹치는 경우
+        describe('when an existing showtime starts before the new range but overlaps', () => {
+            let initialShowtime: ShowtimeDto
+
+            beforeEach(async () => {
+                // 기존 09:00–11:00 (120분), 새 요청은 10:00 부터라 startTime 만 보면 범위 밖.
+                // endTime 이 새 범위와 겹치므로 overlap 으로 간주되어야 한다.
+                const [created] = await createShowtimes(fix, [
+                    {
+                        endTime: new Date('2013-01-31T11:00'),
+                        startTime: new Date('2013-01-31T09:00'),
+                        theaterId: theater.id
+                    }
+                ])
+                initialShowtime = created
+            })
+
+            // 충돌로 보고한다
+            it('reports the conflict', async () => {
+                const completionPromise = waitForCompletion(fix, 'failed')
+
+                await fix.httpClient
+                    .post('/showtime-creation/showtimes')
+                    .body({
+                        durationInMinutes: 120,
+                        movieId: movie.id,
+                        startTimes: [new Date('2013-01-31T10:00')],
+                        theaterIds: [theater.id]
+                    })
+                    .accepted()
+
+                await expect(completionPromise).resolves.toEqual({
+                    conflictingShowtimes: [initialShowtime],
+                    sagaId: expect.any(String),
+                    status: 'failed'
+                })
+            })
+        })
     })
 })
