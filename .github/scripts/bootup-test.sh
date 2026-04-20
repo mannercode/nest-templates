@@ -20,4 +20,4 @@ elif [ "$scope" = "msa" ]; then
 fi
 
 cd /workspaces/nest-seed
-npm test -w "apis/$scope" -- --coverageThreshold='{}'
+bash "apis/$scope/deploy/test.sh"
