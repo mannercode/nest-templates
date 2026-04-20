@@ -23,7 +23,6 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      docker rm -f $(docker ps -aq) 2>/dev/null || true
                       npm run build
                       bash .github/scripts/repeat.sh 100 npm test -w ${{ matrix.scope }} --if-present -- --coverageThreshold='{}'
     bootup:
