@@ -7,7 +7,11 @@ concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 jobs:
-    unit-libs:
+    unit:
+        strategy:
+            fail-fast: false
+            matrix:
+                scope: [libs, apis/mono, apis/msa]
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
         steps:
@@ -21,8 +25,16 @@ jobs:
                       set -Eeuo pipefail
                       docker rm -f $(docker ps -aq) 2>/dev/null || true
                       npm run build
-                      bash .github/scripts/repeat.sh 100 npm test -w libs --if-present -- --coverageThreshold='{}'
-    unit-mono:
+                      bash .github/scripts/repeat.sh 100 npm test -w ${{ matrix.scope }} --if-present -- --coverageThreshold='{}'
+    bootup:
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - scope: mono
+                      count: 100
+                    - scope: msa
+                      count: 70
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
         steps:
@@ -35,8 +47,17 @@ jobs:
                   runCmd: |
                       set -Eeuo pipefail
                       npm run build
-                      bash .github/scripts/repeat.sh 100 npm test -w apis/mono -- --coverageThreshold='{}'
-    unit-msa:
+                      bash .github/scripts/repeat.sh ${{ matrix.count }} bash .github/scripts/bootup-test.sh ${{ matrix.scope }}
+    scenario:
+        strategy:
+            fail-fast: false
+            matrix:
+                scenario:
+                    - sse
+                    - customer-race
+                    - ticket-holding-race
+                    - showtime-overlap-race
+                    - purchase-double-spend
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
         steps:
@@ -48,98 +69,4 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      npm run build
-                      bash .github/scripts/repeat.sh 100 npm test -w apis/msa -- --coverageThreshold='{}'
-    bootup-mono:
-        runs-on: ubuntu-24.04-arm
-        timeout-minutes: 360
-        steps:
-            - uses: actions/checkout@v5
-            - name: Run in devcontainer
-              uses: devcontainers/ci@v0.3
-              with:
-                  configFile: .devcontainer/devcontainer.json
-                  push: never
-                  runCmd: |
-                      set -Eeuo pipefail
-                      npm run build
-                      bash .github/scripts/repeat.sh 100 bash .github/scripts/bootup-test.sh mono
-    bootup-msa:
-        runs-on: ubuntu-24.04-arm
-        timeout-minutes: 360
-        steps:
-            - uses: actions/checkout@v5
-            - name: Run in devcontainer
-              uses: devcontainers/ci@v0.3
-              with:
-                  configFile: .devcontainer/devcontainer.json
-                  push: never
-                  runCmd: |
-                      set -Eeuo pipefail
-                      npm run build
-                      bash .github/scripts/repeat.sh 70 bash .github/scripts/bootup-test.sh msa
-    sse-mono:
-        runs-on: ubuntu-24.04-arm
-        timeout-minutes: 360
-        steps:
-            - uses: actions/checkout@v5
-            - name: Run in devcontainer
-              uses: devcontainers/ci@v0.3
-              with:
-                  configFile: .devcontainer/devcontainer.json
-                  push: never
-                  runCmd: |
-                      set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh sse
-    customer-race-mono:
-        runs-on: ubuntu-24.04-arm
-        timeout-minutes: 360
-        steps:
-            - uses: actions/checkout@v5
-            - name: Run in devcontainer
-              uses: devcontainers/ci@v0.3
-              with:
-                  configFile: .devcontainer/devcontainer.json
-                  push: never
-                  runCmd: |
-                      set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh customer-race
-    ticket-holding-race-mono:
-        runs-on: ubuntu-24.04-arm
-        timeout-minutes: 360
-        steps:
-            - uses: actions/checkout@v5
-            - name: Run in devcontainer
-              uses: devcontainers/ci@v0.3
-              with:
-                  configFile: .devcontainer/devcontainer.json
-                  push: never
-                  runCmd: |
-                      set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh ticket-holding-race
-    showtime-overlap-race-mono:
-        runs-on: ubuntu-24.04-arm
-        timeout-minutes: 360
-        steps:
-            - uses: actions/checkout@v5
-            - name: Run in devcontainer
-              uses: devcontainers/ci@v0.3
-              with:
-                  configFile: .devcontainer/devcontainer.json
-                  push: never
-                  runCmd: |
-                      set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh showtime-overlap-race
-    purchase-double-spend-mono:
-        runs-on: ubuntu-24.04-arm
-        timeout-minutes: 360
-        steps:
-            - uses: actions/checkout@v5
-            - name: Run in devcontainer
-              uses: devcontainers/ci@v0.3
-              with:
-                  configFile: .devcontainer/devcontainer.json
-                  push: never
-                  runCmd: |
-                      set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh purchase-double-spend
+                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh ${{ matrix.scenario }}
