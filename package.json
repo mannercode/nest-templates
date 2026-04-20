@@ -6,10 +6,10 @@
         "apis/*"
     ],
     "scripts": {
-        "build": "npm run build --workspaces",
+        "build": "npm run build --workspaces --if-present",
         "clean": "npm run clean --workspaces --if-present && git clean -fdX ",
-        "lint": "npm run lint --workspaces",
-        "format": "npm run format --workspaces",
+        "lint": "npm run lint --workspaces --if-present",
+        "format": "npm run format --workspaces --if-present",
         "test:unit": "npm run test:unit --workspaces --if-present",
         "test:smoke": "npm run test:smoke --workspaces --if-present",
         "test:load": "npm run test:load --workspaces --if-present",

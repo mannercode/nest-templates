@@ -4,7 +4,6 @@
     "private": true,
     "scripts": {
         "start": "node _output/dist/${TARGET_APP}/index.js",
-        "build": "echo 'skipped (use npm run bundle)'",
         "bundle": "nest build ${TARGET_APP} -b webpack --webpackPath ./webpack.config.js",
         "clean": "docker compose --env-file .env -f deploy/compose.yml down -v -t 0",
         "dev": "nest start ${TARGET_APP} --watch",
