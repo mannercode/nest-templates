@@ -112,13 +112,11 @@ export class CacheService {
         { pollMs = 50, waitMs = 2 * 60 * 1000 }: { pollMs?: number; waitMs?: number } = {}
     ): Promise<T> {
         const deadline = Date.now() + waitMs
-        while (true) {
+        for (;;) {
             const attempt = await this.withLock(key, ttlMs, fn)
             if (attempt.ran) return attempt.result
             if (Date.now() >= deadline) {
-                throw new Error(
-                    `withLockBlocking: could not acquire '${key}' within ${waitMs}ms`
-                )
+                throw new Error(`withLockBlocking: could not acquire '${key}' within ${waitMs}ms`)
             }
             await new Promise((r) => setTimeout(r, pollMs))
         }
