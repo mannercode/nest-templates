@@ -23,7 +23,7 @@ jobs:
                       set -Eeuo pipefail
                       docker rm -f $(docker ps -aq) 2>/dev/null || true
                       npm run build
-                      bash .github/scripts/repeat.sh 100 npm run test:unit -w libs -- --coverageThreshold='{}'
+                      bash .github/scripts/repeat.sh 100 npm run test:unit -w libs --if-present -- --coverageThreshold='{}'
     unit-mono:
         runs-on: ubuntu-24.04-arm
         timeout-minutes: 360
