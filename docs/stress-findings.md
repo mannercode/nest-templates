@@ -74,6 +74,26 @@
 
 ---
 
+## 8. CI 빌드 단계의 `npm install` 이 네트워크 flake 에 무방비
+
+**무엇이 잘못돼 있었나** — [apis/mono/deploy/test.sh](../apis/mono/deploy/test.sh), [apis/msa/deploy/test.sh](../apis/msa/deploy/test.sh) 가 `docker compose up -d --build` 를 단발로 호출. Docker build 안의 `RUN npm install` 이 registry.npmjs.org 에 `ECONNRESET` 을 받으면 그대로 빌드 실패 → atoz 실패.
+
+**드러난 방식** — scenario 강도를 올린 push 에서 CI 가 MSA atoz 의 `#17 [applications build 9/17] RUN npm install` 에서 `npm error code ECONNRESET / network read ECONNRESET` 로 실패. 전부 일시적 transport 오류.
+
+**조치** — test.sh 의 compose up 을 5 회 10/20/30/40 초 백오프 재시도로 감쌌다 ([1ba6764](https://github.com/mannercode/nest-seed/commit/1ba6764)). 더 근본적으로는 pre-built base image 를 GHCR/ECR 에 두고 `npm install` 자체를 CI 경로에서 제거하는 방향.
+
+---
+
+## 9. Node HTTP `keepAliveTimeout` 이 nginx upstream keepalive pool 보다 짧았다
+
+**무엇이 잘못돼 있었나** — nginx.conf 에 `keepalive 32` 를 추가한 반면 Node HTTP server 의 `keepAliveTimeout` 은 기본 5 초. nginx 기본 upstream `keepalive_timeout` 은 60 초. 차이가 생기는 구간에서 nginx 가 유지 중이라 믿은 idle connection 을 Node 가 먼저 닫아버리고, 그 뒤 nginx 가 그 connection 을 재사용하면 `recv() failed (104: Connection reset by peer)` → 502.
+
+**드러난 방식** — INNER_ITERATIONS 를 30 → 500 으로 올린 뒤 showtime-overlap-race 가 iter 358/500 에서 1 회 502 를 받아 `<html>` 응답으로 `JSON.parse` 크래시. nginx 로그에 위 메시지. POST 는 `proxy_next_upstream` 기본값에서 재시도되지 않아 그대로 클라이언트로 전파. 저확률 이슈라 INNER 30 에서는 숨었다가 500 으로 올리니 사실상 매 run 노출.
+
+**조치** — [configure-app.ts](../apis/mono/src/config/configure-app.ts) 에서 `app.listen()` 반환 server 의 `keepAliveTimeout = 65_000`, `headersTimeout = 66_000` 으로 맞췄다 (업계 표준: upstream 쪽 타임아웃보다 크게). MSA 도 동일하게 적용 ([1ae8a91](https://github.com/mannercode/nest-seed/commit/1ae8a91)).
+
+---
+
 ## 검증 결과
 
 위 조치를 모두 누적한 run 24711564026 에서 10 job (5 scenario + 3 unit + 2 bootup) 전부 PASS. 재현성을 확인하는 추가 run 진행 중.
