@@ -16,6 +16,7 @@ import { AppConfigService } from '../config'
                     autoIndex: true,
                     bufferCommands: true,
                     dbName: database,
+                    minPoolSize: 50,
                     maxPoolSize: 200,
                     uri: `mongodb://${user}:${password}@${host1},${host2},${host3}/?replicaSet=${replicaSet}`,
                     waitQueueTimeoutMS: 5000,
