@@ -114,6 +114,16 @@
 
 ---
 
+## 12. BullMQ 가 완료/실패 job 을 기본값으로 무기한 Redis 에 쌓는다
+
+**무엇이 잘못돼 있었나** — [showtime-creation-worker.service.ts](../apis/mono/src/applications/services/showtime-creation/services/showtime-creation-worker.service.ts) 의 `queue.add('showtime-creation.create', jobData)` 호출이 옵션 없이 진행. BullMQ 기본값은 completed/failed job 을 **영원히** Redis 에 보관. 장시간 스트레스에서 수만~수십만 개 saga record 가 누적 → 128MB 제한의 dev infra Redis 가 메모리 압박 → cluster slot routing 이 흔들리고 `Too many Cluster redirections` 연쇄 발생.
+
+**드러난 방식** — overlap 이 outer 25 회 PASS 뒤 26 회째 inner iter 191/500 에서 다시 `Too many Cluster redirections`. 누적 saga ~125k. 10, 11 번 조치를 누적했는데도 동일 증상 — 위쪽 조치들은 symptom(redirect 예산, socket 수명) 이고 진짜 원인은 Redis 에 쌓이는 데이터 자체였다.
+
+**조치** — `queue.add` 호출에 `removeOnComplete: true`, `removeOnFail: 1000` 추가 (완료된 saga 는 즉시 삭제, 실패는 최근 1000 개만 유지). 동시에 dev infra Redis 노드 메모리 제한을 128MB → 512MB 로 상향해 여유 확보.
+
+---
+
 ## 검증 결과
 
 위 조치를 모두 누적한 run 24711564026 에서 10 job (5 scenario + 3 unit + 2 bootup) 전부 PASS. 재현성을 확인하는 추가 run 진행 중.
