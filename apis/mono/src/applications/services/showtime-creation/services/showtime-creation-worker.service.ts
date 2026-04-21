@@ -48,7 +48,13 @@ export class ShowtimeCreationWorkerService
 
         await this.events.emitStatusChanged({ sagaId, status: ShowtimeCreationStatus.Waiting })
 
-        await this.queue.add('showtime-creation.create', jobData)
+        await this.queue.add('showtime-creation.create', jobData, {
+            // Default BullMQ keeps completed/failed jobs forever, filling
+            // Redis until the cluster starts thrashing. Drop completed jobs
+            // immediately; keep a short buffer of failed ones for debugging.
+            removeOnComplete: true,
+            removeOnFail: 1000
+        })
 
         return sagaId
     }

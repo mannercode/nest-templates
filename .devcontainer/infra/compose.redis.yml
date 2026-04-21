@@ -3,7 +3,7 @@ x-redis-base: &redis-base
     image: $REDIS_IMAGE
     healthcheck:
         test: 'redis-cli ping'
-    deploy: { resources: { limits: { memory: 128m } } }
+    deploy: { resources: { limits: { memory: 512m } } }
     shm_size: '8m'
     command: |
         sh -euc '
