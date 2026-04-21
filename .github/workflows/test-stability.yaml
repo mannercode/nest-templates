@@ -68,4 +68,4 @@ jobs:
                   push: never
                   runCmd: |
                       set -Eeuo pipefail
-                      bash .github/scripts/repeat.sh 60 bash apis/mono/tests/runner.sh ${{ matrix.scenario }}
+                      bash .github/scripts/repeat.sh 50 bash apis/mono/tests/runner.sh ${{ matrix.scenario }}

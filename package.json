@@ -14,9 +14,9 @@
         "atoz": "npm run clean && npm install && npm run atoz --workspaces --if-present"
     },
     "devDependencies": {
-        "@aws-sdk/client-s3": "3.1032.0",
-        "@aws-sdk/s3-presigned-post": "3.1032.0",
-        "@aws-sdk/s3-request-presigner": "3.1032.0",
+        "@aws-sdk/client-s3": "3.1033.0",
+        "@aws-sdk/s3-presigned-post": "3.1033.0",
+        "@aws-sdk/s3-request-presigner": "3.1033.0",
         "@commitlint/cli": "20.5.0",
         "@commitlint/config-conventional": "20.5.0",
         "@nestjs/common": "11.1.19",
@@ -36,11 +36,11 @@
         "@types/jest": "30.0.0",
         "@types/node": "24",
         "@types/superagent": "8.1.9",
-        "@typescript-eslint/parser": "8.58.2",
+        "@typescript-eslint/parser": "8.59.0",
         "class-transformer": "0.5.1",
         "class-validator": "0.15.1",
         "eslint": "10.2.1",
-        "eslint-plugin-perfectionist": "5.8.0",
+        "eslint-plugin-perfectionist": "5.9.0",
         "eslint-plugin-unused-imports": "4.4.1",
         "express": "5.2.1",
         "globals": "17.5.0",
@@ -49,15 +49,15 @@
         "jest": "30.3.0",
         "joi": "18.1.2",
         "lint-staged": "16.4.0",
-        "mongodb": "7.1.1",
-        "mongoose": "9.4.1",
+        "mongodb": "7.2.0",
+        "mongoose": "9.5.0",
         "prettier": "3.8.3",
         "reflect-metadata": "0.2.2",
         "rxjs": "7.8.2",
         "testcontainers": "11.14.0",
         "ts-jest": "29.4.9",
         "typescript": "6.0.3",
-        "typescript-eslint": "8.58.2"
+        "typescript-eslint": "8.59.0"
     },
     "packageManager": "npm@11.12.1"
 }

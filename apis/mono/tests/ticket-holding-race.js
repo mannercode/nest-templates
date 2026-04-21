@@ -1,27 +1,30 @@
-// Distributed stress test: ticket holding race across replicas.
+// Distributed stress test: ticket holding race across replicas, multiple
+// concurrent ticket sets.
 //
-// N customers log in against different replicas, then all try to hold the
-// same ticketIds on the same showtime at the same time. TicketHoldingService
-// uses Redis SET NX under the hood so exactly one customer must win the
-// hold (200) and the rest must get 409. A tie (multiple 200s) would mean
-// the Redis lock is broken or bypassed.
+// Each inner iteration: provisions a fresh showtime with enough tickets
+// for TICKET_GROUPS × 2 tickets, splits the tickets into TICKET_GROUPS
+// disjoint pairs, and races CUSTOMERS_PER_GROUP customers per pair.
+// Every customer in a group fires a hold on the same pair at the same
+// time as every other group. Per group: exactly 1 × 200, rest × 409.
 //
-// Each outer runner invocation repeats the race INNER_ITERATIONS times
-// against the same compose stack. Customers are created once and reused
-// across inner iterations; each iter provisions a fresh showtime+tickets
-// (held tickets can't be re-raced under the same lock key).
+// Customers are created once and reused across inner iters; per-iter
+// only provisions fresh tickets (held tickets can't be re-raced under
+// the same lock key).
 //
-// Fails if: not exactly one 200, any 5xx, or requests all landed on one
-// replica (no cross-replica coverage).
+// Fails if: any group's 200 count != 1, any 5xx, or responses came from
+// fewer than 2 replicas.
 
 const http = require('http')
 
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000'
-const CLIENT_COUNT = Number(process.env.HOLD_CLIENT_COUNT || 50)
-const INNER_ITERATIONS = Number(process.env.INNER_ITERATIONS || 5)
+const TICKET_GROUPS = Number(process.env.HOLD_TICKET_GROUPS || 5)
+const CUSTOMERS_PER_GROUP = Number(process.env.HOLD_CLIENT_COUNT || 50)
+const INNER_ITERATIONS = Number(process.env.INNER_ITERATIONS || 30)
 const SHOWTIME_DEADLINE_MS = Number(process.env.SHOWTIME_DEADLINE_MS || 60_000)
 
-function requestRaw(method, path, { body, headers, accept } = {}) {
+const TOTAL_CUSTOMERS = TICKET_GROUPS * CUSTOMERS_PER_GROUP
+
+function requestRaw(method, path, { body, headers } = {}) {
     const url = new URL(path, SERVER_URL)
     const payload = body === undefined ? undefined : JSON.stringify(body)
     const agent = new http.Agent({ keepAlive: false })
@@ -35,7 +38,6 @@ function requestRaw(method, path, { body, headers, accept } = {}) {
                 method,
                 headers: {
                     'content-type': 'application/json',
-                    ...(accept ? { accept } : {}),
                     ...(payload ? { 'content-length': Buffer.byteLength(payload) } : {}),
                     ...(headers || {})
                 }
@@ -113,7 +115,7 @@ function waitForSagaSuccess(sagaId) {
                                 return
                             }
                         } catch {
-                            /* ignore non-JSON frames */
+                            /* ignore */
                         }
                     }
                 })
@@ -138,23 +140,24 @@ async function setupMovieTheater() {
             assetIds: []
         }
     })
-    if (movie.status !== 201) throw new Error(`movie create: ${movie.status}`)
+    if (movie.status !== 201) throw new Error(`movie: ${movie.status}`)
 
     const publish = await requestRaw('POST', `/movies/${movie.body.id}/publish`)
     if (publish.status !== 200 && publish.status !== 201) {
-        throw new Error(`movie publish: ${publish.status}`)
+        throw new Error(`publish: ${publish.status}`)
     }
 
+    // Big seatmap: 1 block × 1 row × 20 tickets — enough for up to 10 groups.
     const theater = await requestRaw('POST', '/theaters', {
         body: {
             name: 'hold-race',
             location: { latitude: 37.5665, longitude: 126.978 },
             seatmap: {
-                blocks: [{ name: 'A', rows: [{ name: '1', layout: 'OOOOOOOO' }] }]
+                blocks: [{ name: 'A', rows: [{ name: '1', layout: 'O'.repeat(20) }] }]
             }
         }
     })
-    if (theater.status !== 201) throw new Error(`theater create: ${theater.status}`)
+    if (theater.status !== 201) throw new Error(`theater: ${theater.status}`)
 
     return { movieId: movie.body.id, theaterId: theater.body.id }
 }
@@ -171,8 +174,7 @@ async function createShowtimeTickets(movieId, theaterId, startTimeOffsetMs) {
             startTimes: [startTime]
         }
     })
-    if (created.status !== 202) throw new Error(`showtime request: ${created.status}`)
-
+    if (created.status !== 202) throw new Error(`showtime: ${created.status}`)
     await waitForSagaSuccess(created.body.sagaId)
 
     const search = await requestRaw('POST', '/showtime-creation/showtimes/search', {
@@ -181,16 +183,25 @@ async function createShowtimeTickets(movieId, theaterId, startTimeOffsetMs) {
     if (search.status !== 200 || !Array.isArray(search.body) || search.body.length === 0) {
         throw new Error(`showtimes search: ${search.status}`)
     }
-    // Pick the showtime matching this iter's startTime (others may exist from prior iters).
     const showtime = search.body.find((s) => s.startTime === startTime) ?? search.body.at(-1)
     const showtimeId = showtime.id
 
     const tickets = await requestRaw('GET', `/booking/showtimes/${showtimeId}/tickets`)
-    if (tickets.status !== 200 || !Array.isArray(tickets.body) || tickets.body.length === 0) {
-        throw new Error(`tickets fetch: ${tickets.status}`)
+    if (tickets.status !== 200 || !Array.isArray(tickets.body)) {
+        throw new Error(`tickets: ${tickets.status}`)
     }
-    const ticketIds = tickets.body.slice(0, 2).map((t) => t.id)
-    return { showtimeId, ticketIds }
+    if (tickets.body.length < TICKET_GROUPS * 2) {
+        throw new Error(
+            `tickets: need ${TICKET_GROUPS * 2}, got ${tickets.body.length}`
+        )
+    }
+
+    // Split into TICKET_GROUPS disjoint pairs.
+    const groups = Array.from({ length: TICKET_GROUPS }, (_, g) => [
+        tickets.body[g * 2].id,
+        tickets.body[g * 2 + 1].id
+    ])
+    return { showtimeId, groups }
 }
 
 async function createAndLoginCustomer(index) {
@@ -210,75 +221,91 @@ async function createAndLoginCustomer(index) {
     return login.body.accessToken
 }
 
-async function runOnce(iteration, movieId, theaterId, tokens, startTimeOffsetMs) {
-    const { showtimeId, ticketIds } = await createShowtimeTickets(
+async function runInner(iteration, movieId, theaterId, tokens, startTimeOffsetMs) {
+    const { showtimeId, groups } = await createShowtimeTickets(
         movieId,
         theaterId,
         startTimeOffsetMs
     )
 
-    const results = await Promise.all(
-        tokens.map((token) =>
-            requestRaw('POST', `/booking/showtimes/${showtimeId}/tickets/hold`, {
-                body: { ticketIds },
-                headers: { authorization: `Bearer ${token}` }
-            })
-        )
-    )
+    // Build attempts: every (group, customer) pair fires a hold on that
+    // group's ticket pair. All TICKET_GROUPS × CUSTOMERS_PER_GROUP fire
+    // simultaneously via a flat Promise.all.
+    const attempts = []
+    for (let g = 0; g < TICKET_GROUPS; g++) {
+        const ticketIds = groups[g]
+        for (let c = 0; c < CUSTOMERS_PER_GROUP; c++) {
+            const token = tokens[g * CUSTOMERS_PER_GROUP + c]
+            attempts.push(
+                requestRaw('POST', `/booking/showtimes/${showtimeId}/tickets/hold`, {
+                    body: { ticketIds },
+                    headers: { authorization: `Bearer ${token}` }
+                }).then((r) => ({ ...r, group: g }))
+            )
+        }
+    }
 
-    const byStatus = new Map()
+    const results = await Promise.all(attempts)
+
+    const byGroup = Array.from({ length: TICKET_GROUPS }, () => ({ ok: 0, conflict: 0, other: [] }))
     const replicaSet = new Set()
     for (const r of results) {
-        byStatus.set(r.status, (byStatus.get(r.status) || 0) + 1)
+        const g = byGroup[r.group]
+        if (r.status === 200) g.ok++
+        else if (r.status === 409) g.conflict++
+        else g.other.push(r)
         if (r.replicaId) replicaSet.add(r.replicaId)
     }
 
-    const ok = byStatus.get(200) || 0
-    const conflict = byStatus.get(409) || 0
-    const other = CLIENT_COUNT - ok - conflict
-
-    if (ok !== 1) {
-        console.error(`[hold] iter=${iteration} expected 1 × 200, got ${ok}`)
-        for (const r of results) console.error(`  - ${r.status} replica=${r.replicaId}`)
-        throw new Error(`iter ${iteration}: 200 count = ${ok}`)
-    }
-    if (other !== 0) {
-        console.error(`[hold] iter=${iteration} unexpected non-200/409: ${other}`)
-        for (const r of results.filter((x) => x.status !== 200 && x.status !== 409)) {
-            console.error(`  - ${r.status} replica=${r.replicaId} body=${JSON.stringify(r.body)}`)
+    for (let g = 0; g < TICKET_GROUPS; g++) {
+        const slot = byGroup[g]
+        if (slot.ok !== 1) {
+            console.error(
+                `[hold] iter=${iteration} group=${g}: expected 1 × 200, got ${slot.ok}`
+            )
+            throw new Error(`iter ${iteration} group ${g}: ${slot.ok} × 200`)
         }
-        throw new Error(`iter ${iteration}: unexpected statuses`)
+        if (slot.other.length > 0) {
+            for (const r of slot.other.slice(0, 5)) {
+                console.error(
+                    `[hold] iter=${iteration} group=${g} unexpected ${r.status} body=${JSON.stringify(r.body)}`
+                )
+            }
+            throw new Error(`iter ${iteration} group ${g}: ${slot.other.length} unexpected`)
+        }
     }
+
     if (replicaSet.size < 2) {
         throw new Error(
-            `iter ${iteration}: only 1 replica served (got ${[...replicaSet]}) — cross-replica unverified`
+            `iter ${iteration}: only 1 replica (got ${[...replicaSet]}) — cross-replica unverified`
         )
     }
 
-    return { conflict, replicas: replicaSet.size }
+    return { total: results.length, replicas: replicaSet.size }
 }
 
 async function main() {
     console.log(
-        `[hold] server=${SERVER_URL} clients=${CLIENT_COUNT} inner=${INNER_ITERATIONS}`
+        `[hold] server=${SERVER_URL} groups=${TICKET_GROUPS} customers/group=${CUSTOMERS_PER_GROUP} inner=${INNER_ITERATIONS}`
     )
 
     const { movieId, theaterId } = await setupMovieTheater()
     const tokens = await Promise.all(
-        Array.from({ length: CLIENT_COUNT }, (_, i) => createAndLoginCustomer(i))
+        Array.from({ length: TOTAL_CUSTOMERS }, (_, i) => createAndLoginCustomer(i))
     )
 
-    // Stagger each iter's showtime so they never overlap in the validator.
     const spacingMs = 3 * 60 * 60 * 1000
 
     for (let i = 1; i <= INNER_ITERATIONS; i++) {
-        const result = await runOnce(i, movieId, theaterId, tokens, i * spacingMs)
+        const result = await runInner(i, movieId, theaterId, tokens, i * spacingMs)
         console.log(
-            `[hold] iter ${i}/${INNER_ITERATIONS} OK — 1×200, ${result.conflict}×409, ${result.replicas} replicas`
+            `[hold] iter ${i}/${INNER_ITERATIONS} OK — ${result.total} reqs, ${result.replicas} replicas`
         )
     }
 
-    console.log(`[hold] PASS: ${INNER_ITERATIONS} iterations × ${CLIENT_COUNT} clients`)
+    console.log(
+        `[hold] PASS: ${INNER_ITERATIONS} iters × ${TICKET_GROUPS} groups × ${CUSTOMERS_PER_GROUP} customers`
+    )
 }
 
 main().catch((err) => {

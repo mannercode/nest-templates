@@ -1,24 +1,26 @@
-// Distributed stress test: cross-replica SSE fan-out.
+// Distributed stress test: cross-replica SSE fan-out under heavy load.
 //
-// Opens multiple SSE connections via nginx (with a fresh http.Agent per
-// connection so TCP-level reuse does not collapse them onto one replica),
-// then issues a single showtime-creation POST. With Redis pub/sub wired
-// through PubSubService every SSE client — regardless of which replica it
-// landed on — must receive the saga's succeeded event.
+// Each inner iteration: opens SSE_CLIENT_COUNT SSE connections across
+// replicas, fires SAGAS_PER_INNER saga-creation POSTs simultaneously
+// (each with a distinct staggered startTime), and asserts that every
+// SSE client receives every saga's succeeded event. The pass condition
+// is SSE_CLIENT_COUNT × SAGAS_PER_INNER events delivered correctly.
 //
-// Each outer runner invocation repeats the race INNER_ITERATIONS times
-// against the same compose stack to widen the contention window without
-// paying compose-up cost per race.
+// Per inner iter exercises thousands of Redis pub/sub messages because
+// each replica publishes status changes for each saga (Waiting →
+// Processing → Succeeded) and every subscriber forwards to its
+// local Subject.
 //
-// Fails if: any SSE client does not receive the event, or all SSE clients
-// land on the same replica (no cross-replica coverage).
+// Fails if: any SSE client misses any saga's succeeded event, or SSE
+// clients landed on fewer than 2 replicas (no cross-replica coverage).
 
 const http = require('http')
 
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000'
-const SSE_CLIENT_COUNT = Number(process.env.SSE_CLIENT_COUNT || 50)
-const INNER_ITERATIONS = Number(process.env.INNER_ITERATIONS || 5)
-const DEADLINE_MS = Number(process.env.SSE_DEADLINE_MS || 60_000)
+const SSE_CLIENT_COUNT = Number(process.env.SSE_CLIENT_COUNT || 100)
+const SAGAS_PER_INNER = Number(process.env.SAGAS_PER_INNER || 20)
+const INNER_ITERATIONS = Number(process.env.INNER_ITERATIONS || 30)
+const DEADLINE_MS = Number(process.env.SSE_DEADLINE_MS || 120_000)
 
 function requestJson(method, path, body) {
     const url = new URL(path, SERVER_URL)
@@ -157,81 +159,99 @@ async function setupFixture() {
     return { movieId: movie.body.id, theaterId: theater.body.id }
 }
 
-async function runOnce(movieId, theaterId, iteration, startTimeOffsetMs) {
+async function runInner(movieId, theaterId, iteration, baseOffsetMs) {
+    // Open a fresh batch of SSE clients per iter.
     const clients = Array.from({ length: SSE_CLIENT_COUNT }, (_, i) => openSseClient(i))
     await Promise.all(clients.map((c) => c.connected))
 
     const replicaSet = new Set(clients.map((c) => c.getReplicaId()).filter(Boolean))
-
-    const startTime = new Date(Date.now() + 24 * 60 * 60 * 1000 + startTimeOffsetMs)
-        .toISOString()
-        .replace(/\.\d{3}Z$/, '.000Z')
-    const createRes = await requestJson('POST', '/showtime-creation/showtimes', {
-        movieId,
-        theaterIds: [theaterId],
-        durationInMinutes: 120,
-        startTimes: [startTime]
-    })
-    if (createRes.status !== 202) {
-        await Promise.all(clients.map((c) => c.close().catch(() => {})))
-        throw new Error(`showtime creation rejected: ${createRes.status}`)
-    }
-    const sagaId = createRes.body.sagaId
-
-    const received = await Promise.all(
-        clients.map(async (client) => {
-            const ok = await waitUntil(
-                () =>
-                    client.events.some(
-                        (e) => e && e.sagaId === sagaId && e.status === 'succeeded'
-                    ),
-                { timeoutMs: DEADLINE_MS }
-            )
-            return { clientId: client.clientId, replicaId: client.getReplicaId(), ok }
-        })
-    )
-
-    await Promise.all(clients.map((c) => c.close().catch(() => {})))
-
-    const missing = received.filter((r) => !r.ok)
-    if (missing.length) {
-        console.error(
-            `[sse] iter=${iteration} ${missing.length}/${received.length} clients missed the succeeded event`
-        )
-        for (const m of missing) {
-            console.error(`  - client ${m.clientId} replica=${m.replicaId}`)
-        }
-        throw new Error(`iter ${iteration} missed events`)
-    }
-
     if (replicaSet.size < 2) {
+        await Promise.all(clients.map((c) => c.close().catch(() => {})))
         throw new Error(
             `iter ${iteration}: only 1 replica served SSE (got ${[...replicaSet]}) — cross-replica unverified`
         )
     }
 
-    return { received: received.length, replicas: replicaSet.size }
+    // Fire SAGAS_PER_INNER sagas at once. Each uses a distinct non-overlapping
+    // startTime so the validator doesn't reject them.
+    const sagaSpacingMs = 3 * 60 * 60 * 1000 // 3h
+    const sagaPromises = Array.from({ length: SAGAS_PER_INNER }, (_, i) => {
+        const startTime = new Date(
+            Date.now() + 24 * 60 * 60 * 1000 + baseOffsetMs + i * sagaSpacingMs
+        )
+            .toISOString()
+            .replace(/\.\d{3}Z$/, '.000Z')
+        return requestJson('POST', '/showtime-creation/showtimes', {
+            movieId,
+            theaterIds: [theaterId],
+            durationInMinutes: 120,
+            startTimes: [startTime]
+        })
+    })
+
+    const postResults = await Promise.all(sagaPromises)
+    const sagaIds = postResults.map((r) => {
+        if (r.status !== 202) throw new Error(`iter ${iteration}: saga POST status ${r.status}`)
+        return r.body.sagaId
+    })
+
+    // Every client must receive every saga's succeeded event.
+    const ok = await waitUntil(
+        () =>
+            clients.every((c) =>
+                sagaIds.every((id) =>
+                    c.events.some((e) => e && e.sagaId === id && e.status === 'succeeded')
+                )
+            ),
+        { timeoutMs: DEADLINE_MS }
+    )
+
+    await Promise.all(clients.map((c) => c.close().catch(() => {})))
+
+    if (!ok) {
+        const missing = []
+        for (const c of clients) {
+            for (const sagaId of sagaIds) {
+                if (!c.events.some((e) => e && e.sagaId === sagaId && e.status === 'succeeded')) {
+                    missing.push({ client: c.clientId, sagaId, replicaId: c.getReplicaId() })
+                }
+            }
+        }
+        console.error(
+            `[sse] iter=${iteration} ${missing.length} client×saga pairs missed succeeded`
+        )
+        for (const m of missing.slice(0, 20)) {
+            console.error(`  - client ${m.client} saga ${m.sagaId} replica=${m.replicaId}`)
+        }
+        if (missing.length > 20) console.error(`  ... ${missing.length - 20} more`)
+        throw new Error(`iter ${iteration}: ${missing.length} missing events`)
+    }
+
+    const totalEvents = SSE_CLIENT_COUNT * SAGAS_PER_INNER
+    return { events: totalEvents, replicas: replicaSet.size }
 }
 
 async function main() {
     console.log(
-        `[sse] server=${SERVER_URL} clients=${SSE_CLIENT_COUNT} inner=${INNER_ITERATIONS}`
+        `[sse] server=${SERVER_URL} clients=${SSE_CLIENT_COUNT} sagas=${SAGAS_PER_INNER} inner=${INNER_ITERATIONS}`
     )
 
     const { movieId, theaterId } = await setupFixture()
 
-    // Space consecutive sagas apart so overlap detection never rejects them.
-    // Per iter shift = max duration + margin.
-    const spacingMs = 3 * 60 * 60 * 1000
+    // Each inner iter uses SAGAS_PER_INNER × 3h of timeline starting at
+    // baseOffset; space iterations far enough apart that they don't collide.
+    const iterSpacingMs = SAGAS_PER_INNER * 3 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000
 
     for (let i = 1; i <= INNER_ITERATIONS; i++) {
-        const result = await runOnce(movieId, theaterId, i, i * spacingMs)
+        const result = await runInner(movieId, theaterId, i, i * iterSpacingMs)
         console.log(
-            `[sse] iter ${i}/${INNER_ITERATIONS} OK — ${result.received} clients, ${result.replicas} replicas`
+            `[sse] iter ${i}/${INNER_ITERATIONS} OK — ${result.events} events delivered, ${result.replicas} replicas`
         )
     }
 
-    console.log(`[sse] PASS: ${INNER_ITERATIONS} iterations × ${SSE_CLIENT_COUNT} clients`)
+    console.log(
+        `[sse] PASS: ${INNER_ITERATIONS} iters × ${SSE_CLIENT_COUNT} clients × ${SAGAS_PER_INNER} sagas`
+    )
 }
 
 main().catch((err) => {

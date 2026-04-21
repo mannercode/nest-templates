@@ -1,28 +1,22 @@
-// Distributed stress test: overlapping showtime-creation saga race.
+// Distributed stress test: overlapping showtime-creation saga race —
+// N-way overlap.
 //
-// Two overlapping saga requests are submitted in parallel to nginx. With
-// 4 replicas each running its own BullMQ worker, the two jobs can land on
-// different workers and run simultaneously. The validator reads existing
-// showtimes then inserts — a classic read-then-insert race. A distributed
-// lock around validate+create must serialize the pair so exactly one saga
-// succeeds and the other reports `failed` with conflictingShowtimes.
+// Each inner iteration: OVERLAP_COUNT saga POSTs are submitted in
+// parallel, every pair mutually overlapping (staggered startTimes with
+// durations that always intersect). With 4 BullMQ workers, multiple
+// jobs run simultaneously — only the holder of the validate+create
+// lock may succeed. Expected: exactly 1 succeeded, OVERLAP_COUNT - 1
+// failed.
 //
-// Each outer runner invocation repeats the race INNER_ITERATIONS times
-// against the same compose stack; successive iters use widely-spaced
-// time windows so prior iterations' winning showtimes never interfere.
-//
-// Fails if: both succeed (overlapping showtimes in DB), both fail
-// (neither won), or neither reaches a terminal state in time.
-//
-// Note: the race is at the worker/Redis layer, not the HTTP layer — the
-// two POSTs may or may not land on different replicas, and that is not
-// what determines the test outcome.
+// Fails if: more than one succeeds, zero succeed, or sagas don't reach
+// terminal state in time.
 
 const http = require('http')
 
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000'
-const INNER_ITERATIONS = Number(process.env.INNER_ITERATIONS || 5)
-const SAGA_DEADLINE_MS = Number(process.env.SAGA_DEADLINE_MS || 60_000)
+const OVERLAP_COUNT = Number(process.env.OVERLAP_COUNT || 10)
+const INNER_ITERATIONS = Number(process.env.INNER_ITERATIONS || 30)
+const SAGA_DEADLINE_MS = Number(process.env.SAGA_DEADLINE_MS || 120_000)
 
 function requestJson(method, path, body) {
     const url = new URL(path, SERVER_URL)
@@ -159,34 +153,36 @@ async function setupFixture() {
     return { movieId: movie.body.id, theaterId: theater.body.id }
 }
 
-async function runOnce(iteration, movieId, theaterId, sse, baseOffsetMs) {
-    // A runs base..base+2h, B runs base+1h..base+3h (overlap 1h).
+async function runInner(iteration, movieId, theaterId, sse, baseOffsetMs) {
+    // N sagas, each startTime 10 minutes apart, each 120 minutes long.
+    // So sagas at base, base+10m, base+20m, ..., base+(N-1)×10m.
+    // Last saga ends at base + (N-1)×10m + 120m.
+    // All pairwise overlap: adjacent pairs overlap 110m; first/last pair
+    // overlaps 120m − (N-1)×10m (positive as long as N ≤ 13).
     const base = new Date(Date.now() + 24 * 60 * 60 * 1000 + baseOffsetMs)
     base.setUTCSeconds(0, 0)
     base.setUTCMinutes(0)
     const toIso = (d) => d.toISOString().replace(/\.\d{3}Z$/, '.000Z')
-    const startA = toIso(base)
-    const startB = toIso(new Date(base.getTime() + 60 * 60 * 1000))
 
-    const [a, b] = await Promise.all([
-        requestJson('POST', '/showtime-creation/showtimes', {
-            movieId,
-            theaterIds: [theaterId],
-            durationInMinutes: 120,
-            startTimes: [startA]
-        }),
-        requestJson('POST', '/showtime-creation/showtimes', {
-            movieId,
-            theaterIds: [theaterId],
-            durationInMinutes: 120,
-            startTimes: [startB]
-        })
-    ])
-    if (a.status !== 202 || b.status !== 202) {
-        throw new Error(`iter ${iteration}: creation POST A=${a.status} B=${b.status}`)
-    }
+    const startTimes = Array.from({ length: OVERLAP_COUNT }, (_, i) =>
+        toIso(new Date(base.getTime() + i * 10 * 60 * 1000))
+    )
 
-    const sagaIds = [a.body.sagaId, b.body.sagaId]
+    const posts = await Promise.all(
+        startTimes.map((startTime) =>
+            requestJson('POST', '/showtime-creation/showtimes', {
+                movieId,
+                theaterIds: [theaterId],
+                durationInMinutes: 120,
+                startTimes: [startTime]
+            })
+        )
+    )
+
+    const sagaIds = posts.map((p, i) => {
+        if (p.status !== 202) throw new Error(`iter ${iteration} post ${i}: ${p.status}`)
+        return p.body.sagaId
+    })
 
     const terminal = ['succeeded', 'failed', 'error']
     const outcomeOf = (sagaId) =>
@@ -206,39 +202,51 @@ async function runOnce(iteration, movieId, theaterId, sse, baseOffsetMs) {
     const outcomes = sagaIds.map(outcomeOf)
     const succeeded = outcomes.filter((e) => e.status === 'succeeded').length
     const failed = outcomes.filter((e) => e.status === 'failed').length
+    const errored = outcomes.filter((e) => e.status === 'error').length
 
-    if (succeeded === 2) {
-        throw new Error(`iter ${iteration}: both sagas succeeded — overlap race not prevented`)
-    }
-    if (succeeded !== 1 || failed !== 1) {
+    if (succeeded !== 1) {
         for (const o of outcomes) console.error(`  - iter=${iteration} ${JSON.stringify(o)}`)
-        throw new Error(`iter ${iteration}: succeeded=${succeeded} failed=${failed}`)
+        throw new Error(
+            `iter ${iteration}: expected 1 succeeded, got ${succeeded} (failed=${failed}, error=${errored})`
+        )
+    }
+    if (succeeded + failed !== OVERLAP_COUNT) {
+        for (const o of outcomes) console.error(`  - iter=${iteration} ${JSON.stringify(o)}`)
+        throw new Error(
+            `iter ${iteration}: expected ${OVERLAP_COUNT - 1} failed, got ${failed} (error=${errored})`
+        )
     }
 
     return { succeeded, failed }
 }
 
 async function main() {
-    console.log(`[overlap] server=${SERVER_URL} inner=${INNER_ITERATIONS}`)
+    console.log(
+        `[overlap] server=${SERVER_URL} overlap=${OVERLAP_COUNT} inner=${INNER_ITERATIONS}`
+    )
 
     const { movieId, theaterId } = await setupFixture()
     const sse = openSseCollector()
     await sse.connected
 
-    // Space each iter's time window 6h apart so prior iters' winning
-    // showtime (2h long) never overlaps the next iter's candidates.
-    const spacingMs = 6 * 60 * 60 * 1000
+    // Each iter uses roughly OVERLAP_COUNT × 10min + 120min timeline.
+    // Space iters 12h apart so winning showtime never conflicts with next iter.
+    const spacingMs = 12 * 60 * 60 * 1000
 
     try {
         for (let i = 1; i <= INNER_ITERATIONS; i++) {
-            await runOnce(i, movieId, theaterId, sse, i * spacingMs)
-            console.log(`[overlap] iter ${i}/${INNER_ITERATIONS} OK — 1 succeeded, 1 failed`)
+            const result = await runInner(i, movieId, theaterId, sse, i * spacingMs)
+            console.log(
+                `[overlap] iter ${i}/${INNER_ITERATIONS} OK — 1 succeeded, ${result.failed} failed`
+            )
         }
     } finally {
         await sse.close().catch(() => {})
     }
 
-    console.log(`[overlap] PASS: ${INNER_ITERATIONS} iterations`)
+    console.log(
+        `[overlap] PASS: ${INNER_ITERATIONS} iters × ${OVERLAP_COUNT}-way race`
+    )
 }
 
 main().catch((err) => {

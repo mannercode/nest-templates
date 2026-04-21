@@ -13,9 +13,9 @@
         "atoz": "npm run clean && npm run lint && npm test && bash deploy/test.sh"
     },
     "dependencies": {
-        "@aws-sdk/client-s3": "3.1032.0",
-        "@aws-sdk/s3-presigned-post": "3.1032.0",
-        "@aws-sdk/s3-request-presigner": "3.1032.0",
+        "@aws-sdk/client-s3": "3.1033.0",
+        "@aws-sdk/s3-presigned-post": "3.1033.0",
+        "@aws-sdk/s3-request-presigner": "3.1033.0",
         "@mannercode/common": "*",
         "@nestjs/bullmq": "11.0.4",
         "@nestjs/common": "11.1.19",
@@ -29,14 +29,14 @@
         "@nestjs/schedule": "6.1.3",
         "@nestjs/terminus": "11.1.1",
         "bcrypt": "6.0.0",
-        "bullmq": "5.74.1",
+        "bullmq": "5.75.2",
         "class-transformer": "0.5.1",
         "class-validator": "0.15.1",
         "compression": "1.8.1",
         "express": "5.2.1",
         "ioredis": "5.10.1",
         "joi": "18.1.2",
-        "mongoose": "9.4.1",
+        "mongoose": "9.5.0",
         "reflect-metadata": "0.2.2",
         "rxjs": "7.8.2"
     },
@@ -53,7 +53,7 @@
         "eslint": "10.2.1",
         "eslint-plugin-allowed-dependencies": "2.1.0",
         "eslint-plugin-jest": "29.15.2",
-        "eslint-plugin-perfectionist": "5.8.0",
+        "eslint-plugin-perfectionist": "5.9.0",
         "eslint-plugin-unused-imports": "4.4.1",
         "globals": "17.5.0",
         "jest": "30.3.0",
@@ -63,6 +63,6 @@
         "ts-node": "10.9.2",
         "tsconfig-paths": "4.2.0",
         "typescript": "6.0.3",
-        "typescript-eslint": "8.58.2"
+        "typescript-eslint": "8.59.0"
     }
 }
