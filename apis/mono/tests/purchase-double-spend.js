@@ -18,7 +18,7 @@ const http = require('http')
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000'
 const CUSTOMER_GROUPS = Number(process.env.PURCHASE_CUSTOMER_GROUPS || 5)
 const PURCHASES_PER_GROUP = Number(process.env.PURCHASE_CLIENT_COUNT || 50)
-const INNER_ITERATIONS = Number(process.env.INNER_ITERATIONS || 30)
+const INNER_ITERATIONS = Number(process.env.INNER_ITERATIONS || 150)
 const SHOWTIME_DEADLINE_MS = Number(process.env.SHOWTIME_DEADLINE_MS || 60_000)
 
 function requestRaw(method, path, { body, headers } = {}) {
