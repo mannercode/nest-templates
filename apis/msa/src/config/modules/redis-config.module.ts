@@ -9,7 +9,19 @@ import { AppConfigService } from '../config'
                 inject: [AppConfigService],
                 useFactory: (config: AppConfigService) => {
                     const { nodes } = config.redis
-                    const redisOptions: RedisModuleOptions = { nodes, type: 'cluster' }
+                    const redisOptions: RedisModuleOptions = {
+                        nodes,
+                        options: {
+                            // ioredis default is 16; stress bursts hitting
+                            // many slots back-to-back can exhaust the budget
+                            // before the local slot cache settles.
+                            maxRedirections: 32,
+                            retryDelayOnFailover: 200,
+                            retryDelayOnClusterDown: 200,
+                            slotsRefreshTimeout: 5000
+                        },
+                        type: 'cluster'
+                    }
                     return redisOptions
                 }
             },
