@@ -94,6 +94,16 @@
 
 ---
 
+## 10. ioredis cluster 기본 redirect 예산이 부하 burst 에 부족
+
+**무엇이 잘못돼 있었나** — [redis-config.module.ts](../apis/mono/src/config/modules/redis-config.module.ts) 가 `ClusterOptions` 없이 생성. ioredis 기본값 `maxRedirections: 16` 이라 slot cache 가 아직 안정되지 않은 상태에서 burst 가 들어오면 한 요청이 여러 번 `MOVED` redirect 를 받다가 16 회 초과.
+
+**드러난 방식** — showtime-overlap-race 가 iter 156/500 에서 500 응답. 앱 로그 에 `Error: Too many Cluster redirections. Last error: ReplyError: MOVED 6290 host.docker.internal:6380`. saga enqueue 가 실패하면서 POST 500 반환.
+
+**조치** — `maxRedirections: 32`, `retryDelayOnFailover: 200`, `retryDelayOnClusterDown: 200`, `slotsRefreshTimeout: 5000` 로 클러스터 옵션 튜닝. 양쪽 앱에 적용 ([755e49d](https://github.com/mannercode/nest-seed/commit/755e49d)).
+
+---
+
 ## 검증 결과
 
 위 조치를 모두 누적한 run 24711564026 에서 10 job (5 scenario + 3 unit + 2 bootup) 전부 PASS. 재현성을 확인하는 추가 run 진행 중.
