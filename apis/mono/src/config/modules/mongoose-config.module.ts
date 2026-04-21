@@ -12,8 +12,8 @@ import { AppConfigService } from '../config'
                 const { database, host1, host2, host3, password, replicaSet, user } = config.mongo
 
                 return {
-                    autoCreate: false,
-                    autoIndex: false,
+                    autoCreate: true,
+                    autoIndex: true,
                     bufferCommands: true,
                     dbName: database,
                     maxPoolSize: 200,

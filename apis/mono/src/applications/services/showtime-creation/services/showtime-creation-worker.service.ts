@@ -44,7 +44,7 @@ export class ShowtimeCreationWorkerService
 
         this.logger.log('enqueueShowtimeCreationJob', { sagaId })
 
-        const jobData = { createDto, sagaId } as ShowtimeCreationJobData
+        const jobData: ShowtimeCreationJobData = { createDto, sagaId }
 
         await this.events.emitStatusChanged({ sagaId, status: ShowtimeCreationStatus.Waiting })
 

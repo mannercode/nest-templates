@@ -13,10 +13,12 @@ export class ShowtimeCreationService {
         private readonly workerService: ShowtimeCreationWorkerService
     ) {}
 
-    async requestShowtimeCreation(createDto: BulkCreateShowtimesDto) {
+    async requestShowtimeCreation(
+        createDto: BulkCreateShowtimesDto
+    ): Promise<RequestShowtimeCreationResponse> {
         const sagaId = await this.workerService.enqueueShowtimeCreationJob(createDto)
 
-        return { sagaId } as RequestShowtimeCreationResponse
+        return { sagaId }
     }
 
     async searchMoviesPage(searchDto: PaginationDto) {
