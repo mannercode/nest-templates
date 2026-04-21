@@ -33,5 +33,10 @@ export async function configureApp({ app, natsOptions }: ConfigureAppOptions) {
 
     app.enableShutdownHooks()
 
-    await app.listen(http.port)
+    const server = await app.listen(http.port)
+    // Keep idle upstream connections alive longer than kong/nginx pool
+    // timeout (default 60s) so the gateway never tries to reuse a connection
+    // Node has already closed — which would surface to clients as a 502.
+    server.keepAliveTimeout = 65_000
+    server.headersTimeout = 66_000
 }
