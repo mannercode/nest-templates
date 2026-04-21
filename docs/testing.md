@@ -256,3 +256,20 @@ bash apis/mono/tests/runner.sh purchase-double-spend
 ### 9.3. CI
 
 `.github/workflows/test-stability.yaml` 에 각 시나리오를 **독립 job** 으로 등록한다 (`sse-mono`, `customer-race-mono`, `ticket-holding-race-mono`, `showtime-overlap-race-mono`, `purchase-double-spend-mono`). 각 60회 반복으로 flakiness 를 누적 관측한다.
+
+### 9.4. 장애 및 조치 기록
+
+분산 부하 테스트를 돌리면서 관측된 실패와 root-cause 기반 조치. 다음에 비슷한 증상을 만나면 먼저 여기부터 확인한다.
+
+| # | 증상 | Root cause | 조치 (commit) |
+|---|---|---|---|
+| 1 | scenario 500 `MongoWaitQueueTimeoutError: Timed out while checking out a connection` | 확장된 시나리오가 iter 당 500+ 동시 요청 발사. mongoose 기본 `maxPoolSize=100` 고갈 | `maxPoolSize: 200` 으로 상향 ([9bb6664](https://github.com/mannercode/nest-seed/commit/9bb6664)) |
+| 2 | cold-start 직후 burst 로 동일 timeout 재발 (healthcheck 는 통과) | `minPoolSize=0` 이라 풀이 빈 상태로 listen. healthcheck 가 1개 커넥션만 warming 후 200 → 60+ 동시 요청이 핸드셰이크 경합 | `minPoolSize: 50` 추가 — 부팅 시 풀 warming 후 listen ([a40ea55](https://github.com/mannercode/nest-seed/commit/a40ea55)) |
+| 3 | 신규 DB 에서 첫 insert 가 `WriteConflict` | `autoCreate: false` 상태에서 4 replica 가 동시에 컬렉션을 만들려고 race | `autoCreate: true`, `autoIndex: true` ([7e59bcd](https://github.com/mannercode/nest-seed/commit/7e59bcd)) |
+| 4 | overlap race 에서 iter 24/30 통과 → iter 25 응답이 `<html>` 502 (client `JSON.parse` 크래시) | 2 replica 에서 동시각 upstream TCP `recv() failed (104: Connection reset by peer)`. nginx 에 retry 설정이 전혀 없어 단일 RST 가 곧바로 502 로 전파 | nginx `keepalive 32` + `proxy_next_upstream error timeout http_502 http_503 http_504` + `_tries 3` / `_timeout 10s` ([a40ea55](https://github.com/mannercode/nest-seed/commit/a40ea55)) |
+| 5 | customer-race 5/6 회 성공 후 iter 2 에서 1 × 502 (500 POST /customers 중) | bcrypt 10-round hash 가 libuv threadpool (기본 4) 을 포화시켜 요청당 4~5s. CPU 경합으로 transient TCP 리셋 발생 | compose env 에 `UV_THREADPOOL_SIZE=16` ([6f17aed](https://github.com/mannercode/nest-seed/commit/6f17aed)) |
+| 6 | scenario 부팅 단계에서 `docker compose up` 실패 — `You have reached your unauthenticated pull rate limit. https://www.docker.com/increase-rate-limit` | GitHub Actions runner 의 공유 IP pool 이 Docker Hub 미인증 100회/6h 제한에 걸림. runner.sh 는 첫 pull 실패 시 그대로 exit | runner.sh 에 compose up 5회 재시도 (10/20/30/40s 백오프) ([5ac21ba](https://github.com/mannercode/nest-seed/commit/5ac21ba)) |
+| 7 | bootup job 이 같은 Docker Hub rate limit 으로 간헐 실패 | 동일 원인. bootup-test.sh 쪽도 재시도 미적용 상태 | bootup-test.sh 에 동일 재시도 로직 적용 ([89326e3](https://github.com/mannercode/nest-seed/commit/89326e3)) |
+| 8 | unit matrix 가 MSA unit 에서 MinIO ECONNREFUSED | matrix 개편 시 libs 전용 `docker rm` 단계가 모든 scope 에 적용됨. apis 의 unit 은 공용 infra 를 재사용해야 함 | docker rm 단계를 libs 전용으로 되돌림 ([5e350d9](https://github.com/mannercode/nest-seed/commit/5e350d9)) |
+
+검증 결과: 모든 조치가 누적된 뒤 실행한 run 24711564026 에서 5 scenario + 3 unit + 2 bootup = 10 job 전부 PASS. 단, scenario 중 clock time 이 짧게 끝나는 것(overlap 21분, ticket-holding 27분)은 워크로드 기준으로는 충분하지만 장시간 flakiness 관측용으로는 보강 여지가 있다 — repeat / INNER_ITERATIONS / 동시 부하를 필요에 따라 더 올릴 수 있다.
