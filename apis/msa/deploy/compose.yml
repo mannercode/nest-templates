@@ -3,6 +3,10 @@ x-app-base: &app-base
         - ../.env
     environment:
         - NODE_ENV=production
+        # libuv thread pool: bcrypt and fs ops run here. Default 4 gets
+        # saturated by bursts of password hashing (POST /customers, login),
+        # blocking request completion and tripping upstream resets.
+        - UV_THREADPOOL_SIZE=16
         - MONGO_REPLICA_SET
         - MONGO_USERNAME
         - MONGO_PASSWORD
