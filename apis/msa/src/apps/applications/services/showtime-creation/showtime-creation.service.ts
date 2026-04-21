@@ -4,7 +4,7 @@ import { Inject, Injectable } from '@nestjs/common'
 import { Client } from '@temporalio/client'
 import { getTemporalTaskQueue } from 'config'
 import { MoviesClient, ShowtimesClient, TheatersClient } from 'cores'
-import { BulkCreateShowtimesDto, RequestShowtimeCreationResponse } from './dtos'
+import { BulkCreateShowtimesDto } from './dtos'
 import { ShowtimeCreationStatus } from './services/types'
 import { ShowtimeCreationEvents } from './showtime-creation.events'
 
@@ -29,7 +29,7 @@ export class ShowtimeCreationService {
             args: [{ sagaId, createDto }]
         })
 
-        return { sagaId } as RequestShowtimeCreationResponse
+        return { sagaId }
     }
 
     async searchMoviesPage(searchDto: PaginationDto) {

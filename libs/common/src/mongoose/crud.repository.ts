@@ -69,7 +69,7 @@ export abstract class CrudRepository<Doc> implements OnModuleInit {
             .find({ _id: { $in: objectIds(ids) } } as QueryFilter<Doc>, null, { session })
             .lean(defaultLeanOptions)
 
-        return docs as Doc[]
+        return docs
     }
 
     async findWithPagination(args: {
@@ -211,7 +211,7 @@ export abstract class CrudRepository<Doc> implements OnModuleInit {
     protected async findDocumentById(id: string, session: SessionArg = undefined) {
         const doc = await this.model.findById(objectId(id), null, { session })
 
-        return doc as HydratedDocument<Doc> | null
+        return doc
     }
 
     protected async getDocumentById(id: string, session: SessionArg = undefined) {

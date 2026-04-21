@@ -391,14 +391,14 @@ describe('Crud Delete', () => {
             // withDeleted 없이 명시적으로 deletedAt 조회하면 middleware가 덮어씀
             it('find with explicit deletedAt filter is still filtered by middleware without withDeleted', async () => {
                 // deletedAt !== null 로 찾으려 해도 middleware가 덮어씀
-                const docs = await fix.model.find({ deletedAt: { $ne: null } } as any)
+                const docs = await fix.model.find({ deletedAt: { $ne: null } })
                 expect(docs).toHaveLength(0)
             })
 
             // withDeleted:true + 명시적 deletedAt 필터는 그대로 동작
             it('withDeleted+explicit deletedAt query works as expected', async () => {
                 const docs = await fix.model
-                    .find({ deletedAt: { $ne: null } } as any)
+                    .find({ deletedAt: { $ne: null } })
                     .setOptions({ withDeleted: true })
                 expect(docs).toHaveLength(1)
             })

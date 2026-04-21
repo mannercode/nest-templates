@@ -16,6 +16,7 @@ import { AppConfigService } from '../config'
                     autoIndex: false,
                     bufferCommands: true,
                     dbName: database,
+                    maxPoolSize: 200,
                     uri: `mongodb://${user}:${password}@${host1},${host2},${host3}/?replicaSet=${replicaSet}`,
                     waitQueueTimeoutMS: 5000,
                     writeConcern: { journal: true, w: 'majority', wtimeoutMS: 5000 }

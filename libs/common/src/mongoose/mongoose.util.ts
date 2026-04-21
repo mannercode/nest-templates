@@ -13,12 +13,7 @@ export const objectIds = (ids: string[]) => ids.map((id) => objectId(id))
  * Unique index 위반시 race-safe 한 Conflict 처리를 위해 사용.
  */
 export function isDuplicateKeyError(error: unknown): boolean {
-    return (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        (error as { code: unknown }).code === 11000
-    )
+    return typeof error === 'object' && error !== null && 'code' in error && error.code === 11000
 }
 
 export type QueryBuilderOptions = { allowEmpty?: boolean }
@@ -96,7 +91,7 @@ export function assignIfDefined<
     const value = source[key]
     if (value === undefined) return
 
-    target[key] = transform ? transform(value as NonNullable<Source[K]>) : value
+    target[key] = transform ? transform(value) : value
 }
 
 export function mapDocToDto<Doc extends object, Dto extends object, K extends keyof Dto>(
