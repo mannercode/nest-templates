@@ -6,13 +6,18 @@
 // through PubSubService every SSE client — regardless of which replica it
 // landed on — must receive the saga's succeeded event.
 //
+// Each outer runner invocation repeats the race INNER_ITERATIONS times
+// against the same compose stack to widen the contention window without
+// paying compose-up cost per race.
+//
 // Fails if: any SSE client does not receive the event, or all SSE clients
 // land on the same replica (no cross-replica coverage).
 
 const http = require('http')
 
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000'
-const SSE_CLIENT_COUNT = Number(process.env.SSE_CLIENT_COUNT || 20)
+const SSE_CLIENT_COUNT = Number(process.env.SSE_CLIENT_COUNT || 50)
+const INNER_ITERATIONS = Number(process.env.INNER_ITERATIONS || 5)
 const DEADLINE_MS = Number(process.env.SSE_DEADLINE_MS || 60_000)
 
 function requestJson(method, path, body) {
@@ -72,11 +77,7 @@ function openSseClient(clientId) {
             },
             (res) => {
                 if (res.statusCode !== 200) {
-                    reject(
-                        new Error(
-                            `SSE client ${clientId} got status ${res.statusCode}`
-                        )
-                    )
+                    reject(new Error(`SSE client ${clientId} got status ${res.statusCode}`))
                     return
                 }
                 replicaId = res.headers['x-replica-id']
@@ -156,18 +157,13 @@ async function setupFixture() {
     return { movieId: movie.body.id, theaterId: theater.body.id }
 }
 
-async function main() {
-    console.log(`[sse] server=${SERVER_URL} clients=${SSE_CLIENT_COUNT}`)
-
-    const { movieId, theaterId } = await setupFixture()
-
+async function runOnce(movieId, theaterId, iteration, startTimeOffsetMs) {
     const clients = Array.from({ length: SSE_CLIENT_COUNT }, (_, i) => openSseClient(i))
     await Promise.all(clients.map((c) => c.connected))
 
     const replicaSet = new Set(clients.map((c) => c.getReplicaId()).filter(Boolean))
-    console.log(`[sse] connected, replicas covered=${replicaSet.size}: ${[...replicaSet].join(',')}`)
 
-    const startTime = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    const startTime = new Date(Date.now() + 24 * 60 * 60 * 1000 + startTimeOffsetMs)
         .toISOString()
         .replace(/\.\d{3}Z$/, '.000Z')
     const createRes = await requestJson('POST', '/showtime-creation/showtimes', {
@@ -177,10 +173,10 @@ async function main() {
         startTimes: [startTime]
     })
     if (createRes.status !== 202) {
+        await Promise.all(clients.map((c) => c.close().catch(() => {})))
         throw new Error(`showtime creation rejected: ${createRes.status}`)
     }
     const sagaId = createRes.body.sagaId
-    console.log(`[sse] posted showtime-creation sagaId=${sagaId} replica=${createRes.replicaId}`)
 
     const received = await Promise.all(
         clients.map(async (client) => {
@@ -200,24 +196,42 @@ async function main() {
     const missing = received.filter((r) => !r.ok)
     if (missing.length) {
         console.error(
-            `[sse] ${missing.length}/${received.length} clients missed the succeeded event`
+            `[sse] iter=${iteration} ${missing.length}/${received.length} clients missed the succeeded event`
         )
         for (const m of missing) {
             console.error(`  - client ${m.clientId} replica=${m.replicaId}`)
         }
-        process.exit(1)
+        throw new Error(`iter ${iteration} missed events`)
     }
 
     if (replicaSet.size < 2) {
-        console.error(
-            `[sse] only 1 replica served SSE (got ${[...replicaSet]}) — cross-replica unverified`
+        throw new Error(
+            `iter ${iteration}: only 1 replica served SSE (got ${[...replicaSet]}) — cross-replica unverified`
         )
-        process.exit(1)
     }
 
+    return { received: received.length, replicas: replicaSet.size }
+}
+
+async function main() {
     console.log(
-        `[sse] PASS: all ${received.length} SSE clients received succeeded across ${replicaSet.size} replicas`
+        `[sse] server=${SERVER_URL} clients=${SSE_CLIENT_COUNT} inner=${INNER_ITERATIONS}`
     )
+
+    const { movieId, theaterId } = await setupFixture()
+
+    // Space consecutive sagas apart so overlap detection never rejects them.
+    // Per iter shift = max duration + margin.
+    const spacingMs = 3 * 60 * 60 * 1000
+
+    for (let i = 1; i <= INNER_ITERATIONS; i++) {
+        const result = await runOnce(movieId, theaterId, i, i * spacingMs)
+        console.log(
+            `[sse] iter ${i}/${INNER_ITERATIONS} OK — ${result.received} clients, ${result.replicas} replicas`
+        )
+    }
+
+    console.log(`[sse] PASS: ${INNER_ITERATIONS} iterations × ${SSE_CLIENT_COUNT} clients`)
 }
 
 main().catch((err) => {
