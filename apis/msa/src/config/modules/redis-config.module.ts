@@ -18,7 +18,16 @@ import { AppConfigService } from '../config'
                             maxRedirections: 32,
                             retryDelayOnFailover: 200,
                             retryDelayOnClusterDown: 200,
-                            slotsRefreshTimeout: 5000
+                            slotsRefreshTimeout: 5000,
+                            // Per-node TCP options. Default keepAlive=0 lets
+                            // idle sockets die to NAT/firewall timeouts;
+                            // reusing a silently-dead socket surfaces as
+                            // "Connection is closed" during bursts.
+                            redisOptions: {
+                                keepAlive: 30_000,
+                                connectTimeout: 10_000,
+                                maxRetriesPerRequest: null
+                            }
                         },
                         type: 'cluster'
                     }

@@ -104,6 +104,16 @@
 
 ---
 
+## 11. ioredis per-node TCP keepAlive 미설정으로 idle socket 이 조용히 죽음
+
+**무엇이 잘못돼 있었나** — ClusterOptions 에 `redisOptions` 하위 옵션이 없어 개별 노드 TCP 소켓의 `keepAlive` 가 0 (비활성). 오래 idle 한 소켓이 NAT/iptables/docker bridge timeout 으로 소리없이 끊기고, ioredis 가 그 소켓을 재사용하려 시도 → `Error: Connection is closed` → 재시도하면서 slot 이동까지 겹치면 `Too many Cluster redirections` 까지 도달.
+
+**드러난 방식** — 바로 앞 10번 조치 이후에도 overlap 이 **outer iteration 25 회 PASS 뒤 26 회째 내부 iter 99/500 에서** 동일한 "Too many Cluster redirections" 로 실패. 앱 로그에 `Last error: Error: Connection is closed.` 와 `Last error: ReplyError: MOVED 6290 host.docker.internal:6380` 가 번갈아 찍힘. 오래 돌수록 idle socket 이 죽는 패턴.
+
+**조치** — `redisOptions.keepAlive: 30_000`, `connectTimeout: 10_000`, `maxRetriesPerRequest: null` 추가. TCP keepalive 가 소켓을 살아있게 유지하고, BullMQ 권장 `maxRetriesPerRequest: null` 로 blocking command 가 중단되지 않게 함. 양쪽 앱 동일 적용.
+
+---
+
 ## 검증 결과
 
 위 조치를 모두 누적한 run 24711564026 에서 10 job (5 scenario + 3 unit + 2 bootup) 전부 PASS. 재현성을 확인하는 추가 run 진행 중.
