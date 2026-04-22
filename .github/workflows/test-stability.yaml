@@ -1,6 +1,9 @@
 name: Test Stability
 on:
     workflow_dispatch:
+    schedule:
+        # Every 6 hours at :17 UTC (09:17 / 15:17 / 21:17 / 03:17 KST).
+        - cron: '17 */6 * * *'
 permissions:
     contents: read
 concurrency:

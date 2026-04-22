@@ -4,6 +4,10 @@ on:
         branches: ['main']
     push:
         branches: ['main']
+    schedule:
+        # Every 6 hours at :17 UTC so main gets a periodic green run even
+        # without commits, catching dependency/infra-driven breakage.
+        - cron: '17 */6 * * *'
 permissions:
     contents: read
 concurrency:
