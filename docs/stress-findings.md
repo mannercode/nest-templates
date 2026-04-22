@@ -126,6 +126,6 @@
 
 ## 검증 결과
 
-위 조치를 모두 누적한 run 24711564026 에서 10 job (5 scenario + 3 unit + 2 bootup) 전부 PASS. 재현성을 확인하는 추가 run 진행 중.
+12 건 조치를 모두 누적한 뒤, scenario 의 INNER_ITERATIONS 를 30 → 150~500 으로 대폭 상향한 run 24749739102 에서 10 job (5 scenario + 3 unit + 2 bootup) 전부 PASS. overlap scenario 가 기존에 막혀 있던 25 outer iteration wall 을 넘어 완주한 것이 핵심 회귀 지표다.
 
 > **주의** — 이 문서는 "부하를 걸고 관측된 실패" 만 다룬다. 시나리오 구현·동작 자체에 대한 설명은 [testing.md §9](./testing.md#9-분산-테스트) 로.
