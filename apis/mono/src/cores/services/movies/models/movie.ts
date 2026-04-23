@@ -87,3 +87,9 @@ export class Movie extends CrudSchema {
     title: string
 }
 export const MovieSchema = createCrudSchema(Movie)
+
+// Compound index — cycle-15. theater 와 같은 패턴: `deletedAt` prefix 로
+// planner 가 자연스럽게 이쪽을 고르고 뒤이어 title prefix range scan.
+// searchPage 가 항상 `isPublished: true` 를 함께 쓰기 때문에 이 필드도 포함.
+MovieSchema.index({ deletedAt: 1, isPublished: 1, title: 1 })
+MovieSchema.index({ title: 1 })

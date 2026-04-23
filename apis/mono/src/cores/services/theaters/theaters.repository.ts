@@ -59,6 +59,11 @@ export class TheatersRepository extends CrudRepository<Theater> {
         const { name } = searchDto
 
         const builder = new QueryBuilder<Theater>()
+        // cycle-31 에서 substring + case-insensitive 원복. cycle-10/12 에서
+        // prefix+caseSensitive 로 전환했었지만 사용자가 substring 매칭이
+        // 필수 요건임을 확인 — 기능(API 계약) 보호가 성능보다 우선.
+        // compound index 는 남겨둠 (substring regex 는 활용 못 해도 harm 없음,
+        // 다른 쿼리 경로에 잠재 활용 가능).
         builder.addRegex('name', name)
 
         const query = builder.build(options)

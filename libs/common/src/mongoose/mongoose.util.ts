@@ -67,9 +67,24 @@ export class QueryBuilder<T> {
         return this
     }
 
-    addRegex(field: string, value?: string): this {
+    addRegex(
+        field: string,
+        value?: string,
+        options?: { caseSensitive?: boolean; prefix?: boolean }
+    ): this {
         if (value) {
-            this.query[field] = new RegExp(escapeRegExp(value), 'i')
+            // Substring match (기본) 은 어떤 인덱스도 활용하지 못해 COLLSCAN 이
+            // 됨 (cycle-09 측정: 216K docs 에서 23 RPS). 더 빠르게 가려면:
+            //  - `prefix: true` 로 `^value` 앵커링 → prefix range scan 후보
+            //  - `caseSensitive: true` 로 `i` flag 제거 → 일반 ascending 인덱스
+            //    (`{ field: 1 }`) 활용 가능. case-insensitive 인덱스가 따로
+            //    있다면 caseSensitive 없이도 되지만 mongoose 기본 인덱스는 그냥
+            //    binary 비교라 `i` flag 와 호환 안 됨.
+            //  prefix + caseSensitive 둘 다 켜야 진짜 IXSCAN 으로 떨어진다 (cycle-10).
+            const pattern = options?.prefix ? '^' + escapeRegExp(value) : escapeRegExp(value)
+            this.query[field] = options?.caseSensitive
+                ? new RegExp(pattern)
+                : new RegExp(pattern, 'i')
         }
         return this
     }

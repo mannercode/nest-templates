@@ -18,6 +18,13 @@
             "type": "shell",
             "command": "bash",
             "args": ["-c", "${input:testCommand}"]
+        },
+        {
+            "label": "Claude (tmux)",
+            "type": "shell",
+            "command": "tmux new -As work claude",
+            "presentation": { "reveal": "always", "panel": "dedicated", "focus": true },
+            "problemMatcher": []
         }
     ],
     "inputs": [

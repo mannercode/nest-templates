@@ -1,7 +1,6 @@
 import type { Type } from '@nestjs/common'
 import type { ClientSession, Query, Schema } from 'mongoose'
 import { SchemaFactory } from '@nestjs/mongoose'
-import mongooseLeanVirtuals from 'mongoose-lean-virtuals'
 import { defaultTo } from '../utils'
 
 /**
@@ -52,7 +51,6 @@ export function addDeletedAtFilterToPipeline(pipeline: Record<string, any>[]) {
 
 export function createCrudSchema<T>(cls: Type<T>): Schema<T> {
     const schema = SchemaFactory.createForClass(cls)
-    schema.plugin(mongooseLeanVirtuals)
 
     const isHardDelete = defaultTo(Reflect.getMetadata(HARD_DELETE_KEY, cls), false)
     if (isHardDelete === false) {

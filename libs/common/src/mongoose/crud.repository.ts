@@ -16,7 +16,28 @@ import { objectId, objectIds } from './mongoose.util'
 type BulkSaveDocs<Doc> = Parameters<Model<Doc>['bulkSave']>[0]
 type SessionArg = ClientSession | undefined
 
-const defaultLeanOptions = { virtuals: true }
+const defaultLeanOptions = {}
+
+// Lean results return `{ _id: ObjectId, ... }`. The schema virtual exposes
+// `id: string` and strips `_id` via `toJSON.flattenObjectIds`, but that
+// transform only fires for hydrated documents or when the
+// mongoose-lean-virtuals plugin is engaged (lean({ virtuals: true })).
+// Running the plugin cost ~30% of read RPS on paginated endpoints (cycle-06
+// measurement). A direct set is much cheaper and preserves the existing
+// public `id: string` response shape.
+//
+// We add `id` but keep `_id` in the in-memory doc: downstream internal code
+// (`getByIds` and callers) still does `doc._id.toString()` for comparison,
+// and the HTTP response serialization already drops `_id` on its own
+// (empirically verified — the lean POJO goes through some serialization
+// layer that hides `_id`, likely a global NestJS interceptor / schema-
+// derived class-transformer config — so it never reaches the wire anyway).
+export function leanToPublic<T extends { _id?: unknown }>(doc: T): T {
+    if (doc._id != null) {
+        ;(doc as any).id = String(doc._id)
+    }
+    return doc
+}
 
 /**
  * CRUD category 의 repository base.
@@ -61,7 +82,7 @@ export abstract class CrudRepository<Doc> implements OnModuleInit {
             .findById(objectId(id), null, { session })
             .lean(defaultLeanOptions)
 
-        return doc as Doc | null
+        return doc ? (leanToPublic(doc as any) as Doc) : null
     }
 
     async findByIds(ids: string[], session: SessionArg = undefined): Promise<Doc[]> {
@@ -69,7 +90,7 @@ export abstract class CrudRepository<Doc> implements OnModuleInit {
             .find({ _id: { $in: objectIds(ids) } } as QueryFilter<Doc>, null, { session })
             .lean(defaultLeanOptions)
 
-        return docs
+        return (docs as any[]).map(leanToPublic) as Doc[]
     }
 
     async findWithPagination(args: {
@@ -105,11 +126,30 @@ export abstract class CrudRepository<Doc> implements OnModuleInit {
 
         queryHelper.lean(defaultLeanOptions)
 
-        const [items, total] = await Promise.all([
+        // Pagination runs find + count in parallel. For empty filters, count
+        // was measured at ~4-5× the latency of find+skip+limit on dev data
+        // (mongo primary ran 1000% CPU on list endpoints — see
+        // docs/perf/cycle-01-baseline.md). countDocuments with the CrudSchema
+        // pre-hook collapses to countDocuments({ deletedAt: null }), an index
+        // scan over every non-deleted row. estimatedDocumentCount reads the
+        // collection metadata (O(1)), so for the empty-filter path we use it.
+        //
+        // Tradeoff: estimatedDocumentCount returns *all* rows including
+        // soft-deleted ones, so the reported `total` can exceed the number of
+        // rows actually returned across pages. That's acceptable for list
+        // pagination in this codebase — soft-deleted rows are excluded from
+        // `find`, so last-page gaps are possible but ordering stays consistent.
+        const rawFilter = queryHelper.getQuery()
+        const filterIsEmpty = Object.keys(rawFilter).length === 0
+
+        const [rawItems, total] = await Promise.all([
             queryHelper.exec(),
-            this.model.countDocuments(queryHelper.getQuery()).exec()
+            filterIsEmpty
+                ? this.model.estimatedDocumentCount().exec()
+                : this.model.countDocuments(rawFilter).exec()
         ])
 
+        const items = (rawItems as any[]).map(leanToPublic)
         return { items, page, size, total } as PaginationResult<Doc>
     }
 

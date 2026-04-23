@@ -180,6 +180,35 @@ describe('QueryBuilder', () => {
                 expect(builder.build({ allowEmpty: true })).toEqual({})
             })
         })
+
+        // cycle-10: prefix 옵션으로 ^ 앵커링
+        describe('with { prefix: true }', () => {
+            it('anchors the regex at start', () => {
+                builder.addRegex('name', 'hello', { prefix: true })
+                expect(builder.build({})).toEqual({ name: new RegExp('^hello', 'i') })
+            })
+
+            it('escapes regex special chars', () => {
+                builder.addRegex('name', 'a.b*', { prefix: true })
+                expect(builder.build({})).toEqual({ name: new RegExp('^a\\.b\\*', 'i') })
+            })
+        })
+
+        // cycle-10: caseSensitive 옵션으로 i 플래그 제거
+        describe('with { caseSensitive: true }', () => {
+            it('drops the i flag', () => {
+                builder.addRegex('name', 'test', { caseSensitive: true })
+                expect(builder.build({})).toEqual({ name: new RegExp('test') })
+            })
+        })
+
+        // cycle-12: prefix + caseSensitive 조합 (theater/movie/customer 검색 모드)
+        describe('with both prefix and caseSensitive', () => {
+            it('anchors and drops the i flag', () => {
+                builder.addRegex('name', 'test', { prefix: true, caseSensitive: true })
+                expect(builder.build({})).toEqual({ name: new RegExp('^test') })
+            })
+        })
     })
 
     describe('addRange', () => {

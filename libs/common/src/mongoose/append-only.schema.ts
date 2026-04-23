@@ -1,7 +1,6 @@
 import type { Type } from '@nestjs/common'
 import type { Schema } from 'mongoose'
 import { SchemaFactory } from '@nestjs/mongoose'
-import mongooseLeanVirtuals from 'mongoose-lean-virtuals'
 
 /**
  * Append-only category 의 schema base.
@@ -22,7 +21,6 @@ export abstract class AppendOnlySchema {
 
 export function createAppendOnlySchema<T>(cls: Type<T>): Schema<T> {
     const schema = SchemaFactory.createForClass(cls)
-    schema.plugin(mongooseLeanVirtuals)
 
     // Query-level mutation 차단 (model.updateOne, model.deleteOne 등 직접 호출)
     const throwMutation = function () {

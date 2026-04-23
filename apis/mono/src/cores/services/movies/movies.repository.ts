@@ -84,6 +84,7 @@ export class MoviesRepository extends CrudRepository<Movie> {
 
         const builder = new QueryBuilder<Movie>()
         builder.addEquals('isPublished', true)
+        // substring + case-insensitive 유지 (cycle-31 원복).
         builder.addRegex('title', title)
         builder.addEquals('genres', genre)
         builder.addEquals('releaseDate', releaseDate)

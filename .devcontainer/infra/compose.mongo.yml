@@ -1,7 +1,10 @@
 x-mongo-base: &mongo-base
     extends: { file: ./compose.common.yml, service: common-options }
     image: $MONGO_IMAGE
-    deploy: { resources: { limits: { memory: 1g } } }
+    # Phase 2 (cycle-11): 1 GiB → 2 GiB. cycle-09 에서 250K theaters 시점에
+    # WT cache 256 MiB 가 evict 시작하면서 read RPS 가 c=200 에서 ~1000 으로
+    # 떨어졌음. 메모리 증설로 cache 한도를 함께 끌어올린다.
+    deploy: { resources: { limits: { memory: 2g } } }
     shm_size: '8m'
     environment:
         { MONGO_INITDB_ROOT_USERNAME: $MONGO_USERNAME, MONGO_INITDB_ROOT_PASSWORD: $MONGO_PASSWORD }
@@ -24,7 +27,7 @@ x-mongo-base: &mongo-base
         --keyFile /etc/mongodb/mongodb.key
         --bind_ip_all
         --port 27016
-        --wiredTigerCacheSizeGB 0.25
+        --wiredTigerCacheSizeGB 1.0
     volumes: ['mongodb_key:/etc/mongodb']
     depends_on: ['mongo-key-generator']
 
