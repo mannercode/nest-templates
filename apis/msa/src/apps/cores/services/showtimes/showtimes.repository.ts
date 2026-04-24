@@ -1,4 +1,4 @@
-import { QueryBuilderOptions, CrudRepository, QueryBuilder } from '@mannercode/common'
+import { QueryBuilderOptions, CrudRepository, QueryBuilder, leanToPublic } from '@mannercode/common'
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { MongooseConfigModule } from 'config'
@@ -37,12 +37,11 @@ export class ShowtimesRepository extends CrudRepository<Showtime> {
     async search(searchDto: SearchShowtimesDto) {
         const query = this.buildQuery(searchDto)
 
-        const showtimes = await this.model
-            .find(query)
-            .sort({ startTime: 1 })
-            .lean({ virtuals: true })
-            .exec()
-        return showtimes
+        // cycle-19: mongoose-lean-virtuals 플러그인 제거 (cycle-06 패턴 복제).
+        // lean 결과에 leanToPublic 로 `_id → id` 매핑. 플러그인 hook 오버헤드
+        // 없이 동일한 공개 `id: string` 계약 유지.
+        const showtimes = await this.model.find(query).sort({ startTime: 1 }).lean().exec()
+        return (showtimes as any[]).map(leanToPublic) as typeof showtimes
     }
 
     async searchMovieIds(searchDto: SearchShowtimesDto) {

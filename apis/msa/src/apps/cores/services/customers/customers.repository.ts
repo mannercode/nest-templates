@@ -2,7 +2,8 @@ import {
     QueryBuilderOptions,
     assignIfDefined,
     CrudRepository,
-    QueryBuilder
+    QueryBuilder,
+    leanToPublic
 } from '@mannercode/common'
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
@@ -41,13 +42,15 @@ export class CustomersRepository extends CrudRepository<Customer> {
     }
 
     async findByEmailWithPassword(email: string) {
+        // cycle-19: lean-virtuals 플러그인 제거 + leanToPublic (cycle-06 패턴).
+        // login 경로라 customer.id 가 후속 auth 처리에서 쓰임 — 보존.
         const customer = await this.model
             .findOne({ email: { $eq: email } })
             .select('+password')
-            .lean({ virtuals: true })
+            .lean()
             .exec()
 
-        return customer
+        return customer ? (leanToPublic(customer as any) as typeof customer) : null
     }
 
     async searchPage(searchDto: SearchCustomersPageDto) {

@@ -1,4 +1,10 @@
-import { QueryBuilderOptions, CrudRepository, objectIds, QueryBuilder } from '@mannercode/common'
+import {
+    QueryBuilderOptions,
+    CrudRepository,
+    objectIds,
+    QueryBuilder,
+    leanToPublic
+} from '@mannercode/common'
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { MongooseConfigModule } from 'config'
@@ -68,12 +74,9 @@ export class TicketsRepository extends CrudRepository<Ticket> {
     async search(searchDto: SearchTicketsDto) {
         const query = this.buildQuery(searchDto)
 
-        const tickets = await this.model
-            .find(query)
-            .sort({ sagaId: 1 })
-            .lean({ virtuals: true })
-            .exec()
-        return tickets
+        // cycle-19: lean-virtuals 플러그인 제거 + leanToPublic (cycle-06 패턴).
+        const tickets = await this.model.find(query).sort({ sagaId: 1 }).lean().exec()
+        return (tickets as any[]).map(leanToPublic) as typeof tickets
     }
 
     async updateStatusMany(ticketIds: string[], status: TicketStatus) {

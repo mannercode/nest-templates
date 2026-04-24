@@ -21,3 +21,9 @@ export class Showtime extends CrudSchema {
     theaterId: string
 }
 export const ShowtimeSchema = createCrudSchema(Showtime)
+
+// cycle-19: booking 경로의 주 쿼리 패턴 `{theaterId, startTime range}` 용
+// compound index. HardDelete 스키마라 deletedAt 필터는 없음.
+ShowtimeSchema.index({ theaterId: 1, startTime: 1 })
+// saga op 경로 (`deleteBySagaIds`) 용 단일 인덱스.
+ShowtimeSchema.index({ sagaId: 1 })
