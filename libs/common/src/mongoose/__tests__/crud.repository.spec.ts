@@ -1,6 +1,8 @@
 import { expectEqualUnsorted, nullObjectId } from '@mannercode/testing'
+import { Types } from 'mongoose'
 import { OrderDirection } from '../../pagination'
 import { pickIds } from '../../utils'
+import { leanToPublic } from '../crud.repository'
 import {
     CrudRepositoryFixture,
     SampleDto,
@@ -367,5 +369,20 @@ describe('CrudRepository', () => {
                 await expect(promise).resolves.toEqual({ deletedCount: 0 })
             })
         })
+    })
+})
+
+describe('leanToPublic', () => {
+    // _id 가 있을 때 id 필드를 추가한다
+    it('maps _id to id when _id is present', () => {
+        const objectId = new Types.ObjectId()
+        const result = leanToPublic<{ _id: Types.ObjectId; id?: string }>({ _id: objectId })
+        expect(result.id).toBe(String(objectId))
+    })
+
+    // _id 가 nullish 이면 id 를 추가하지 않는다
+    it('leaves doc unchanged when _id is nullish', () => {
+        const result = leanToPublic<{ _id?: unknown; id?: string }>({})
+        expect(result.id).toBeUndefined()
     })
 })
