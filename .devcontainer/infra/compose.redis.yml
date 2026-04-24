@@ -13,6 +13,7 @@ x-redis-base: &redis-base
           --cluster-announce-ip $$ANNOUNCE_IP \
           --cluster-announce-port $$ANNOUNCE_PORT \
           --cluster-announce-bus-port $$ANNOUNCE_BUS_PORT \
+          --cluster-require-full-coverage no \
           --protected-mode no \
           --appendonly yes
         '
@@ -51,39 +52,6 @@ services:
             }
         ports: ['$REDIS_PORT3:6379', '1$REDIS_PORT3:16379']
 
-    redis4:
-        <<: *redis-base
-        container_name: redis4
-        environment:
-            {
-                ANNOUNCE_IP: $REDIS_HOST4,
-                ANNOUNCE_PORT: $REDIS_PORT4,
-                ANNOUNCE_BUS_PORT: 1$REDIS_PORT4
-            }
-        ports: ['$REDIS_PORT4:6379', '1$REDIS_PORT4:16379']
-
-    redis5:
-        <<: *redis-base
-        container_name: redis5
-        environment:
-            {
-                ANNOUNCE_IP: $REDIS_HOST5,
-                ANNOUNCE_PORT: $REDIS_PORT5,
-                ANNOUNCE_BUS_PORT: 1$REDIS_PORT5
-            }
-        ports: ['$REDIS_PORT5:6379', '1$REDIS_PORT5:16379']
-
-    redis6:
-        <<: *redis-base
-        container_name: redis6
-        environment:
-            {
-                ANNOUNCE_IP: $REDIS_HOST6,
-                ANNOUNCE_PORT: $REDIS_PORT6,
-                ANNOUNCE_BUS_PORT: 1$REDIS_PORT6
-            }
-        ports: ['$REDIS_PORT6:6379', '1$REDIS_PORT6:16379']
-
     redis-setup:
         extends: { file: ./compose.common.yml, service: common-options }
         container_name: redis-setup
@@ -92,10 +60,7 @@ services:
             {
                 redis1: { condition: service_healthy },
                 redis2: { condition: service_healthy },
-                redis3: { condition: service_healthy },
-                redis4: { condition: service_healthy },
-                redis5: { condition: service_healthy },
-                redis6: { condition: service_healthy }
+                redis3: { condition: service_healthy }
             }
         command: |
             sh -euc '
@@ -103,13 +68,10 @@ services:
                 $REDIS_HOST1:$REDIS_PORT1 \
                 $REDIS_HOST2:$REDIS_PORT2 \
                 $REDIS_HOST3:$REDIS_PORT3 \
-                $REDIS_HOST4:$REDIS_PORT4 \
-                $REDIS_HOST5:$REDIS_PORT5 \
-                $REDIS_HOST6:$REDIS_PORT6 \
                 "
 
             echo "yes" |
-                redis-cli --cluster create $$REDIS_NODES --cluster-replicas 1
+                redis-cli --cluster create $$REDIS_NODES --cluster-replicas 0
             '
 
     redis-gui:

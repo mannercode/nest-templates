@@ -40,18 +40,11 @@ export class AppConfigService extends BaseConfigService {
         NODE_ENV: Joi.string().valid('development', 'production', 'test').required(),
         REDIS_HOST1: Joi.string().required(),
         REDIS_HOST2: Joi.string().required(),
-
         REDIS_HOST3: Joi.string().required(),
-        REDIS_HOST4: Joi.string().required(),
-        REDIS_HOST5: Joi.string().required(),
-        REDIS_HOST6: Joi.string().required(),
 
         REDIS_PORT1: Joi.number().required(),
         REDIS_PORT2: Joi.number().required(),
         REDIS_PORT3: Joi.number().required(),
-        REDIS_PORT4: Joi.number().required(),
-        REDIS_PORT5: Joi.number().required(),
-        REDIS_PORT6: Joi.number().required(),
 
         S3_ACCESS_KEY: Joi.string().required(),
         S3_BUCKET: Joi.string().required(),
@@ -117,10 +110,7 @@ export class AppConfigService extends BaseConfigService {
         const nodes = [
             { host: this.getString('REDIS_HOST1'), port: this.getNumber('REDIS_PORT1') },
             { host: this.getString('REDIS_HOST2'), port: this.getNumber('REDIS_PORT2') },
-            { host: this.getString('REDIS_HOST3'), port: this.getNumber('REDIS_PORT3') },
-            { host: this.getString('REDIS_HOST4'), port: this.getNumber('REDIS_PORT4') },
-            { host: this.getString('REDIS_HOST5'), port: this.getNumber('REDIS_PORT5') },
-            { host: this.getString('REDIS_HOST6'), port: this.getNumber('REDIS_PORT6') }
+            { host: this.getString('REDIS_HOST3'), port: this.getNumber('REDIS_PORT3') }
         ]
 
         return { nodes }

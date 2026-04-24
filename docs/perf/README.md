@@ -1,6 +1,6 @@
 # 성능 튜닝 요약
 
-2026-04-23 devcontainer 인프라 (Mongo 3-node / Redis 6-node) 튜닝 결과.
+2026-04-23 devcontainer 인프라 (Mongo 3-node / Redis 3-node) 튜닝 결과.
 검색 API **substring 매칭을 유지**하는 조건에서의 정직한 수치.
 
 ## TL;DR — 순수 코드/설정 튜닝 효과 (물리 조건 동등)
@@ -59,6 +59,8 @@
     - mongo 메모리 1 GiB → **2 GiB** (Phase 2)
     - `--wiredTigerCacheSizeGB 0.25 → 1.0` (WT cache = mongo RAM 의 50%, 권장 범위 내)
     - 한 번 1.5 GiB 로 올렸다가 75% 초과는 권장 외라 1.0 으로 원복
+
+6b. **`.devcontainer/infra/compose.redis.yml`** — 6-node → 3-node cluster - cycle 5 에서 Redis 가 모든 워크로드에서 심하게 under-utilized (primary CPU 15-18%, 메모리 5%) 확인. HA 관점으로 3 primary + 3 replica 는 표준이지만 dev 환경 대비 과잉 - redis4/5/6 컨테이너 삭제, `redis-setup` 의 `--cluster-replicas 1 → 0` - `--cluster-require-full-coverage no` 추가 (primary 1개 다운돼도 다른 슬롯은 접근 가능) - `.env` · `apis/mono/deploy/compose.yml` · `apis/msa/deploy/compose.yml` · `app-config.service.ts` (mono/msa 양쪽) 에서 `REDIS_HOST4-6`, `REDIS_PORT4-6` 환경변수와 node 배열 원소 제거 - ioredis cluster client (`type: 'cluster'`) 설정은 그대로 유지 — 3-node 도 cluster 모드에서 정상 작동, fork 사용자가 prod 갈 때 replica 다시 붙이는 데 코드 변경 불필요 - 메모리 1.5 GiB 확보, 컨테이너 3개 감소. dev 환경 시작 시간 단축 - 실측: 3-node 전환 후 customer-refresh c=100 **5535 RPS** (6-node 때 3489 대비 +59%). slot routing 단순화 + primary 당 slot 담당 넓어진 효과. race test 4종 PASS
 
 7. **`apis/mono/deploy/nginx.conf`**
     - `worker_processes 8` (auto = 16 대비 proxy 용엔 적정)
