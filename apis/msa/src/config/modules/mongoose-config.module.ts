@@ -16,16 +16,12 @@ import { AppConfigService } from '../config'
                     autoIndex: true,
                     bufferCommands: true,
                     dbName: database,
-                    // Pool size swept from (50, 200) down through (5, 20) —
-                    // see docs/perf/cycle-04-pool-sizing.md. (10, 50) retained
-                    // full read/write throughput at c=100/200/400 while
-                    // quartering the connection count against the 3-node RS;
-                    // dropping further to (5, 20) started queueing at c=200
-                    // (−42% RPS on reads). 50 per app × 4 replicas = 200 total
-                    // connections to the cluster, still well above the ~128
-                    // concurrent ops we actually run per app at c=400.
-                    minPoolSize: 10,
-                    maxPoolSize: 50,
+                    // Reverted to (50, 200) — see mono mongoose-config for
+                    // rationale. cycle-04's (10, 50) caused MongoWaitQueue-
+                    // TimeoutError in race scenarios (500 concurrent burst
+                    // overflows maxPool=50/replica + 5s queue timeout).
+                    minPoolSize: 50,
+                    maxPoolSize: 200,
                     uri: `mongodb://${user}:${password}@${host1},${host2},${host3}/?replicaSet=${replicaSet}`,
                     waitQueueTimeoutMS: 5000,
                     writeConcern: { journal: true, w: 'majority', wtimeoutMS: 5000 }

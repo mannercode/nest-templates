@@ -32,8 +32,11 @@
 2. **`libs/common/src/mongoose/mongoose.util.ts`**
     - `QueryBuilder.addRegex` 에 `{ prefix?, caseSensitive? }` 옵션 파라미터 추가. 기본값은 기존 동작 (substring + case-insensitive) 그대로. 현재 사용 호출처 없음 — 향후 prefix-전용 검색 엔드포인트 추가 시 옵트인 용도
 
-3. **`apis/mono/src/config/modules/mongoose-config.module.ts`**
-    - mongo pool `(min: 10, max: 50)` (기존 50/200). waitQueueTimeoutMS 5s 유지
+3. **`apis/mono/src/config/modules/mongoose-config.module.ts`** · **`apis/msa/...`**
+    - ~~mongo pool `(min: 10, max: 50)`~~ → **`(min: 50, max: 200)` 로 원복** (2026-04-26).
+      Test Stability 의 race scenario (500 concurrent POST + bcrypt) 가 maxPool=50/replica 를
+      넘겨 `MongoWaitQueueTimeoutError` 가 떨어짐. cycle-04 의 perf 스윕은 c=400 까지만 봤고
+      race burst 영역을 못 봤음. waitQueueTimeoutMS 5s 유지.
     - writeConcern `{ journal: true, w: 'majority' }` 유지 (변경 없음)
     - readPreference default (primary) 유지
 
@@ -85,6 +88,7 @@
 | `writeConcern: { w: 1 }`                  | +5-13% but durability 위험 | primary failover 시 write 소실. 필요하면 컬렉션별 opt-in 으로 (아래 설명) |
 | 검색 API substring → prefix+caseSensitive | 필터 +65× but 기능 훼손    | 사용자 substring 필수 확인, cycle-31 원복. 필터 개선은 별도 트랙으로      |
 | WT cache 1.0 → 1.5 GiB                    | +10-20% but 권장 50% 초과  | 안정성 우선 — 1.0 으로 원복                                               |
+| mongo pool `(50,200)` → `(10,50)`         | perf 동일 + warm conn 1/4  | race test 500 concurrent 에서 풀 고갈로 `MongoWaitQueueTimeoutError`. (50,200) 원복 |
 
 ## 안정성 상태
 
