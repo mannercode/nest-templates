@@ -15,6 +15,8 @@
 
 **메모리 증설 (mongo 2 GiB + WT 1 GiB)** 은 이 데이터 크기 (100-140K) 에선 거의 의미 없음 (±5 %). cycle 17 에서 **2M+ docs 부터 working set > cache 로 의미있는 이득** 확인 — 소규모 운영은 Phase 1 메모리로 충분.
 
+> **위 표는 read-only / write-only 격리 측정**이라 실제 서비스 capacity 의 상한이지 평균이 아니다. 동시 read+write 부하에서는 격리 합의 약 **42 %** 까지 떨어진다 — 자세한 숫자와 병목 분석은 [mixed-workload.md](mixed-workload.md). prod 용량 산정은 mixed 수치가 기준.
+
 ### 필터 쿼리 개선이 0인 이유
 
 `addRegex(field, value)` 는 `/value/i` 정규식 → mongo `$regex` 에 substring + case-insensitive 조합은 어떤 인덱스도 활용 못 해서 COLLSCAN. `$regex` 자체의 한계. 의미 유지하면서 빠르게 만들려면 별도 검색 경로 (Atlas Search / `$text` / 전용 prefix 엔드포인트) 도입 필요 — 별개 트랙.
