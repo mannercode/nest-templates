@@ -27,11 +27,11 @@
         "prepare-files": "touch ${localEnv:HOME}/.claude.json"
     },
     "postCreateCommand": { "husky": "husky", "ci": "npm install" },
-    "postStartCommand": {
-        "plantuml": "nohup bash -c 'java -jar /opt/plantuml.jar -picoweb:5020 >/tmp/plantuml.log &' >/dev/null",
-        "infra": "bash .devcontainer/infra/reset.sh",
-        "build-libs": "npm run build -w libs || true"
-    },
+    "postStartCommand": [
+        "bash .devcontainer/infra/reset.sh",
+        "npm run build -w libs || true",
+        "nohup bash -c 'java -jar /opt/plantuml.jar -picoweb:5020 >/tmp/plantuml.log &' >/dev/null"
+    ],
     "waitFor": "postStartCommand",
     "forwardPorts": [5010, 5020],
     "customizations": {
