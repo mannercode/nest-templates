@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 # fails abruptly. The 2026-04-28 Test Stability bootup-mono regression hit
 # `exit code: undefined` mid-pull, suggesting signal kill from runner OS.
 echo "=== reset.sh start ==="
-echo "[mem]"; free -m || true
+echo "[mem]"; head -5 /proc/meminfo 2>/dev/null || true
 echo "[disk]"; df -h / /tmp 2>/dev/null || true
 
 docker rm -f $(docker ps -aq) 2>/dev/null || true
