@@ -24,7 +24,15 @@ jobs:
         runs-on: ubuntu-24.04-arm
         steps:
             - uses: actions/checkout@v7.0.1
+            # 호스트 지표는 Dev Container 밖에서 기록해야 runner 자원 경합을 볼 수 있다.
+            - name: Start runner diagnostics
+              id: runner_diagnostics
+              run: |
+                  command -v vmstat
+                  vmstat -w -t 1 > "${RUNNER_TEMP}/api-race-vmstat.log" 2>&1 &
+                  echo "$!" > "${RUNNER_TEMP}/api-race-vmstat.pid"
             - name: Run in devcontainer
+              id: race
               uses: devcontainers/ci@v0.3.1900000450
               with:
                   runCmd: |
@@ -35,3 +43,21 @@ jobs:
                           pnpm run race ${{ matrix.scenario }}
                           run=$((run + 1))
                       done
+            - name: Finish runner diagnostics
+              if: ${{ always() && steps.runner_diagnostics.outcome == 'success' }}
+              env:
+                  RACE_OUTCOME: ${{ steps.race.outcome }}
+              run: |
+                  kill "$(cat "${RUNNER_TEMP}/api-race-vmstat.pid")"
+                  if [ "${RACE_OUTCOME}" != "success" ]; then
+                      echo "=== runner resources $(date --utc --iso-8601=seconds) ==="
+                      head -n 3 "${RUNNER_TEMP}/api-race-vmstat.log"
+                      tail -n 180 "${RUNNER_TEMP}/api-race-vmstat.log"
+                      free -m
+                      df -h
+                      df -i
+                      for resource in cpu memory io; do
+                          echo "--- ${resource} pressure ---"
+                          cat "/proc/pressure/${resource}"
+                      done
+                  fi
