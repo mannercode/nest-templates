@@ -48,7 +48,6 @@ jobs:
               env:
                   RACE_OUTCOME: ${{ steps.race.outcome }}
               run: |
-                  kill "$(cat "${RUNNER_TEMP}/api-race-vmstat.pid")"
                   if [ "${RACE_OUTCOME}" != "success" ]; then
                       echo "=== runner resources $(date --utc --iso-8601=seconds) ==="
                       head -n 3 "${RUNNER_TEMP}/api-race-vmstat.log"
@@ -61,3 +60,4 @@ jobs:
                           cat "/proc/pressure/${resource}"
                       done
                   fi
+                  kill "$(cat "${RUNNER_TEMP}/api-race-vmstat.pid")"
