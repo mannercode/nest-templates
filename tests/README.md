@@ -20,6 +20,8 @@ pnpm --filter './apps/api' test users.spec --coverage.enabled=false
 
 단위·통합 테스트와 race 결과는 터미널에서 확인한다. 브라우저 실패의 trace·screenshot·HTML은 `tests/web/_output/`에 남는다. benchmark는 실행 시각별 `tests/api/benchmark/_output/<YYYYMMDD-HHMMSS>/report.html`과 `summary.json`을 만든다.
 
+race 실패 로그에는 정리 전 컨테이너 상태·자원 사용량과 MongoDB 각 노드의 복제·서버 상태도 남긴다. Test API Race의 `Finish runner diagnostics`는 실패 직전 runner 자원 지표를 출력한다. 상태 조회는 실패 후의 snapshot이며, 복제 지연의 원인은 같은 시각의 DB 로그·runner 지표와 함께 판단한다.
+
 benchmark가 만든 극장 fixture는 개발 MongoDB에 남는다. 초기화하려면 `bash infra/reset.sh`를 실행한다.
 
 ## 3. 보조 명령

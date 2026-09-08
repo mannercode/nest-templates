@@ -51,14 +51,56 @@ cleanup() {
 trap cleanup EXIT
 
 dump_diagnostics() {
+    local service cid cname
+
     echo ""
     echo "=== container diagnostics ==="
+    date --utc --iso-8601=seconds
     "${compose[@]}" ps -a || true
+
+    timeout --kill-after=2s 10s "${compose[@]}" stats --all --no-stream --format json \
+        || echo "[diagnostics] container resource collection failed" >&2
+
     for cid in $("${compose[@]}" ps -aq 2>/dev/null); do
         cname=$(docker inspect --format '{{.Name}} ({{.State.Status}})' "${cid}" 2>/dev/null || echo "${cid}")
+        docker inspect --format 'name={{.Name}} state={{json .State}} restarts={{.RestartCount}}' "${cid}" \
+            || echo "[diagnostics] container state collection failed: ${cid}" >&2
         echo "--- logs ${cname} (last 200) ---"
         docker logs --tail 200 "${cid}" 2>&1 || true
         echo ""
+    done
+
+    # 복제 지연은 ping health만으로 알 수 없으므로 각 노드에 직접 상태를 묻는다.
+    # 상태 조회가 남기는 로그에 실패 직전 기록이 밀리지 않도록 기존 로그를 먼저 수집한다.
+    for service in mongo1 mongo2 mongo3; do
+        echo "--- MongoDB diagnostics: ${service} ---"
+        timeout --kill-after=2s 10s docker compose -f "${WORKSPACE_ROOT}/infra/compose.yml" \
+            exec -T "${service}" mongosh \
+            'mongodb://localhost:27017/?directConnection=true&serverSelectionTimeoutMS=2000&connectTimeoutMS=2000&socketTimeoutMS=5000' \
+            --quiet --eval '
+                print(EJSON.stringify({ replicaSet: db.adminCommand({ replSetGetStatus: 1 }) }))
+                const s = db.serverStatus()
+                print(EJSON.stringify({ server: {
+                    host: s.host,
+                    localTime: s.localTime,
+                    uptime: s.uptime,
+                    connections: s.connections,
+                    mem: s.mem,
+                    globalLock: s.globalLock,
+                    flowControl: s.flowControl,
+                    repl: s.metrics.repl,
+                    cache: {
+                        bytes: s.wiredTiger.cache["bytes currently in the cache"],
+                        maxBytes: s.wiredTiger.cache["maximum bytes configured"],
+                        dirtyBytes: s.wiredTiger.cache["tracked dirty bytes in the cache"],
+                        timeouts: s.wiredTiger.cache["operations timed out waiting for space in cache"]
+                    },
+                    journal: {
+                        syncs: s.wiredTiger.log["log sync operations"],
+                        syncMicros: s.wiredTiger.log["log sync time duration (usecs)"]
+                    }
+                } }))
+            ' </dev/null || echo "[diagnostics] MongoDB state collection failed: ${service}" >&2
     done
 }
 
